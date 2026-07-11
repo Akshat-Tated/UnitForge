@@ -1,13 +1,17 @@
 import { JobStatus } from '../types';
 import { AgentCard } from '../components/AgentCard';
 import { ArrowLeft, Play, LayoutGrid } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export const JobDetail = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <header className="mb-10">
         <button 
-          onClick={() => window.location.href = '/'}
+          onClick={() => navigate('/')}
           className="flex items-center gap-2 text-sm text-slate-400 hover:text-indigo-400 transition-colors mb-6 group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -22,7 +26,7 @@ export const JobDetail = () => {
               Job Execution Details
             </h1>
             <p className="mt-3 text-slate-400 font-mono text-sm tracking-wide bg-slate-900/50 inline-block px-3 py-1 rounded-md border border-slate-800">
-              ID: 1111-2222-3333-4444
+              ID: {id || '1111-2222-3333-4444'}
             </p>
           </div>
           <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-300 shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:shadow-[0_0_25px_rgba(79,70,229,0.6)]">

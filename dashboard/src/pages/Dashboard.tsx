@@ -1,6 +1,7 @@
 import { JobStatus, TestJob } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { Activity, Calendar, GitBranch, FileCode2, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const mockJobs: TestJob[] = [
   {
@@ -30,6 +31,7 @@ const mockJobs: TestJob[] = [
 ];
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <header className="mb-12 flex items-center justify-between">
@@ -63,7 +65,7 @@ export const Dashboard: React.FC = () => {
                 <tr 
                   key={job.id} 
                   className="hover:bg-slate-700/30 transition-all duration-200 group cursor-pointer"
-                  onClick={() => window.location.href = `/jobs/${job.id}`}
+                  onClick={() => navigate(`/jobs/${job.id}`)}
                 >
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
