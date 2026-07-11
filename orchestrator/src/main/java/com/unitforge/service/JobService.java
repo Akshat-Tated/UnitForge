@@ -1,5 +1,6 @@
 package com.unitforge.service;
 
+import com.unitforge.exception.JobNotFoundException;
 import com.unitforge.model.JobStatus;
 import com.unitforge.model.TestJob;
 import com.unitforge.model.TestResult;
@@ -36,7 +37,7 @@ public class JobService {
     @Transactional(readOnly = true)
     public TestJob getJob(UUID jobId) {
         return testJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
+                .orElseThrow(() -> new JobNotFoundException("Job not found: " + jobId));
     }
 
     @Transactional(readOnly = true)
