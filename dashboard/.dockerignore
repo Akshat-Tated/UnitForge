@@ -1,0 +1,16 @@
+# Never copy these into Docker — they're rebuilt inside the container
+node_modules/
+dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
