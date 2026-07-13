@@ -1,4 +1,4 @@
-import { JobStatus, TestJob } from '../types';
+import { JobStatus, type TestJob } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { Activity, Calendar, GitBranch, FileCode2, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
