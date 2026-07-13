@@ -1,0 +1,93 @@
+version: '3.8'
+
+# ============================================================
+# UnitForge — Docker Compose
+# ============================================================
+# Quick start (infrastructure only — recommended for dev):
+#   docker-compose up postgres redis -d
+#
+# Full stack (builds all images — takes 5-10 min first time):
+#   docker-compose up -d
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # PostgreSQL — stores jobs and test results
+  # ----------------------------------------------------------
+  postgres:
+    image: postgres:16
+    container_name: unitforge-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-unitforge}
+      POSTGRES_USER: ${POSTGRES_USER:-unitforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unitforge}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unitforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Redis — task queue between orchestrator and test agents
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: unitforge-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Orchestrator — Spring Boot REST API
+  # ----------------------------------------------------------
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    container_name: unitforge-orchestrator
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-unitforge}
+      DB_USERNAME: ${POSTGRES_USER:-unitforge}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-unitforge}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Dashboard — React frontend served via nginx
+  # ----------------------------------------------------------
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: unitforge-dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
