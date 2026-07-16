@@ -30,7 +30,7 @@ public class JobController {
 
     @PostMapping("/jobs")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
-        TestJob job = jobService.createJob(request.getInputType(), request.getInputPath());
+        TestJob job = jobService.createJob(request.getInputType(), request.getInputPath(), request.getModuleMap());
 
         CreateJobResponse response = CreateJobResponse.builder()
                 .jobId(job.getId())
