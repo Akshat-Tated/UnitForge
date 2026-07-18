@@ -3,9 +3,7 @@ package com.unitforge.controller;
 import com.unitforge.dto.CreateJobRequest;
 import com.unitforge.dto.CreateJobResponse;
 import com.unitforge.dto.JobStatusResponse;
-import com.unitforge.dto.TestResultResponse;
 import com.unitforge.model.TestJob;
-import com.unitforge.model.TestResult;
 import com.unitforge.service.JobService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -55,24 +52,5 @@ public class JobController {
 
         return ResponseEntity.ok(response);
     }
-
-    @GetMapping("/jobs/{id}/results")
-    public ResponseEntity<List<TestResultResponse>> getResults(@PathVariable UUID id) {
-        List<TestResult> results = jobService.getResults(id);
-
-        List<TestResultResponse> response = results.stream()
-                .map(r -> TestResultResponse.builder()
-                        .id(r.getId())
-                        .jobId(r.getJobId())
-                        .moduleName(r.getModuleName())
-                        .passed(r.isPassed())
-                        .coveragePercent(r.getCoveragePercent())
-                        .generatedTestCode(r.getGeneratedTestCode())
-                        .agentLog(r.getAgentLog())
-                        .createdAt(r.getCreatedAt())
-                        .build())
-                .toList();
-
-        return ResponseEntity.ok(response);
-    }
 }
+

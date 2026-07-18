@@ -70,4 +70,36 @@ public class JobService {
         getJob(jobId);
         return testResultRepository.findByJobId(jobId);
     }
+
+    /**
+     * Persists a test result submitted by a test agent.
+     * Sets the @ManyToOne relationship to the parent TestJob.
+     *
+     * @param jobId          the parent job UUID
+     * @param moduleName     name of the module tested
+     * @param passed         whether tests passed
+     * @param coveragePercent test coverage percentage
+     * @param generatedTestCode the generated test source code
+     * @param agentLog       agent execution log
+     * @return the persisted TestResult
+     */
+    @Transactional
+    public TestResult submitResult(UUID jobId, String moduleName, boolean passed,
+                                   double coveragePercent, String generatedTestCode,
+                                   String agentLog) {
+        TestJob job = getJob(jobId);
+
+        TestResult result = TestResult.builder()
+                .job(job)
+                .moduleName(moduleName)
+                .passed(passed)
+                .coveragePercent(coveragePercent)
+                .generatedTestCode(generatedTestCode)
+                .agentLog(agentLog)
+                .build();
+
+        TestResult saved = testResultRepository.save(result);
+        log.info("Saved result for module '{}' (job {}, passed={})", moduleName, jobId, passed);
+        return saved;
+    }
 }
