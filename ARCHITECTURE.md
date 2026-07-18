@@ -1,4 +1,8 @@
 # UnitForge — Project Initialization Brief
+## Phase Status
+- ✅ Phase 1 (complete): Analysis engine, Spring Boot API, React dashboard, Docker
+- ✅ Phase 2 (complete): LLM integration, Redis worker, test agent pipeline
+- 🔄 Phase 3 (next): Docker test runner, real coverage measurement, job DONE status
 
 You are bootstrapping a new open-source project called **UnitForge** from scratch.
 GitHub repo: https://github.com/Akshat-Tated/UnitForge
