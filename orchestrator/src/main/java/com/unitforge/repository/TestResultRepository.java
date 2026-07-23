@@ -11,4 +11,6 @@ import java.util.UUID;
 public interface TestResultRepository extends JpaRepository<TestResult, UUID> {
 
     List<TestResult> findByJobId(UUID jobId);
+
+    long countByJobId(UUID jobId);
 }

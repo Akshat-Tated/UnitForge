@@ -46,6 +46,8 @@ public class TestJob {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    private Integer totalModules;
+
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();

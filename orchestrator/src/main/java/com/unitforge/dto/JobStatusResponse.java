@@ -20,4 +20,5 @@ public class JobStatusResponse {
     private String inputPath;
     private Instant createdAt;
     private Instant updatedAt;
+    private Integer totalModules;
 }

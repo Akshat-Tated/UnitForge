@@ -9,6 +9,7 @@ import com.unitforge.repository.TestJobRepository;
 import com.unitforge.repository.TestResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,16 +47,26 @@ public class JobService {
         TestJob savedJob = testJobRepository.save(job);
 
         if (moduleMap != null && moduleMap.has("modules")) {
+            int moduleCount = moduleMap.get("modules").size();
+            savedJob.setTotalModules(moduleCount);
+
             int taskCount = taskQueueService.pushModuleTasks(savedJob.getId(), moduleMap);
             if (taskCount > 0) {
                 savedJob.setStatus(JobStatus.RUNNING);
-                log.info("Job {} transitioned to RUNNING with {} task(s)", savedJob.getId(), taskCount);
+                log.info("Job {} transitioned to RUNNING with {} task(s), totalModules={}",
+                        savedJob.getId(), taskCount, moduleCount);
             }
         } else {
+            savedJob.setTotalModules(0);
             taskQueueService.pushTask(savedJob.getId().toString());
         }
 
         return savedJob;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TestJob> getAllJobs() {
+        return testJobRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     @Transactional(readOnly = true)
@@ -100,6 +111,17 @@ public class JobService {
 
         TestResult saved = testResultRepository.save(result);
         log.info("Saved result for module '{}' (job {}, passed={})", moduleName, jobId, passed);
+
+        // Check if all modules have reported — transition job to DONE
+        long completedCount = testResultRepository.countByJobId(jobId);
+        if (job.getTotalModules() != null
+                && job.getTotalModules() > 0
+                && completedCount >= job.getTotalModules()) {
+            job.setStatus(JobStatus.DONE);
+            log.info("Job {} is now DONE ({}/{} modules complete)",
+                    jobId, completedCount, job.getTotalModules());
+        }
+
         return saved;
     }
 }
