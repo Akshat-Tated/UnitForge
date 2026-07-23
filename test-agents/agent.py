@@ -26,7 +26,7 @@ import requests
 from dotenv import load_dotenv
 
 from llm_client import LLMClient, LLMResponse
-from prompt_builder import build_system_prompt, build_test_prompt
+from prompt_builder import build_retry_prompt, build_system_prompt, build_test_prompt
 from test_runner import TestRunResult, run_tests
 
 # ─────────────────────────────────────────────────────────────
@@ -167,7 +167,8 @@ def _process_task(
     """Process a single task from the Redis queue.
 
     Builds the LLM prompt, generates test code, runs the tests,
-    retries on failure if allowed, and reports results.
+    retries on failure with error context (feedback loop), and
+    reports results to the orchestrator.
 
     Args:
         task: The parsed task dictionary from Redis.
@@ -196,24 +197,36 @@ def _process_task(
         )
         return
 
-    # ── Build prompt and generate tests ──────────────────────
-    module_code: str = task.get("moduleCode", "")
-    base_prompt: str = build_test_prompt(module_info, module_code=module_code)
+    # ── Extract source code for coverage measurement ─────────
+    source_code: str = module_info.get("source_code", "")
     system_prompt: str = build_system_prompt()
 
-    max_retries: int = config["max_retry_attempts"]
-    retry_count: int = 0
+    # ── Feedback loop: generate → run → retry on failure ─────
+    max_attempts: int = config["max_retry_attempts"]
+    attempt: int = 1
     test_code: str = ""
     result: Optional[TestRunResult] = None
-    prompt: str = base_prompt
+    last_error: str = ""
 
-    while retry_count <= max_retries:
-        attempt_label: str = (
-            "initial attempt" if retry_count == 0
-            else f"retry {retry_count}/{max_retries}"
-        )
-        logger.info("Generating tests for '%s' (%s)", module_name, attempt_label)
+    while attempt <= max_attempts:
+        # ── Build prompt (initial or retry) ───────────────────
+        if attempt == 1:
+            prompt: str = build_test_prompt(module_info)
+            logger.info("Generating tests for '%s' (attempt %d)", module_name, attempt)
+        else:
+            prompt = build_retry_prompt(
+                module_info=module_info,
+                previous_test_code=test_code,
+                error_message=last_error,
+            )
+            logger.warning(
+                "Tests failed for '%s', retrying (attempt %d/%d)",
+                module_name,
+                attempt,
+                max_attempts,
+            )
 
+        # ── Generate test code via LLM ───────────────────────
         try:
             llm_response: LLMResponse = llm_client.generate(
                 prompt=prompt,
@@ -239,7 +252,12 @@ def _process_task(
 
         # ── Run the generated tests ──────────────────────────
         try:
-            result = run_tests(test_code=test_code, module_name=module_name)
+            result = run_tests(
+                test_code=test_code,
+                module_name=module_name,
+                source_code=source_code,
+                timeout=60,
+            )
         except Exception as exc:
             logger.error(
                 "Test execution failed for module '%s': %s",
@@ -256,37 +274,23 @@ def _process_task(
 
         if result.passed:
             logger.info(
-                "Tests PASSED for module '%s' (coverage=%.1f%%)",
+                "Tests PASSED for '%s' on attempt %d (coverage=%.1f%%)",
                 module_name,
+                attempt,
                 result.coverage_percent,
             )
             break
-
-        # ── Retry with error context ─────────────────────────
-        retry_count += 1
-        if retry_count <= max_retries:
-            logger.warning(
-                "Tests FAILED for module '%s'. Retrying with error context...",
-                module_name,
-            )
-            # Rebuild from the base prompt each time to avoid unbounded growth
-            error_context: str = result.error_message or "Tests failed"
-            prompt = (
-                f"{base_prompt}\n\n"
-                f"=== Previous Attempt Failed ===\n"
-                f"The previously generated tests failed with the following error:\n"
-                f"{error_context}\n\n"
-                f"Please fix the issues and regenerate the test code.\n"
-                f"Return ONLY the corrected Python test code."
-            )
         else:
-            logger.error(
-                "Tests FAILED for module '%s' after %d retries.",
+            last_error = result.error_message or result.output
+            logger.warning(
+                "Tests FAILED for '%s' on attempt %d: %s",
                 module_name,
-                max_retries,
+                attempt,
+                last_error[:200],
             )
+            attempt += 1
 
-    # ── Report result ────────────────────────────────────────
+    # ── Report result (pass or fail after all retries) ───────
     if result is None:
         # Should not happen, but guard against it
         result = TestRunResult(
@@ -297,10 +301,9 @@ def _process_task(
             generated_file_path="",
         )
 
-    total_attempts: int = retry_count + 1 if not result.passed else retry_count + 1
     agent_log: str = (
-        f"Generated tests in {total_attempts} attempt(s). "
-        f"{'All tests passed.' if result.passed else 'Tests failed after retries.'}"
+        f"Generated tests in {attempt} attempt(s). "
+        f"{'All tests passed.' if result.passed else 'Tests failed after all retries.'}"
     )
 
     _report_result(

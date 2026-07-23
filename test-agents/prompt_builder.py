@@ -245,3 +245,48 @@ def build_test_prompt(module_info: dict[str, Any], module_code: str = "") -> str
     # Default to python
     logger.info("Building Python test prompt for '%s'", module_info.get("name", "?"))
     return _build_python_prompt(module_info, module_code)
+
+
+def build_retry_prompt(
+    module_info: dict[str, Any],
+    previous_test_code: str,
+    error_message: str,
+) -> str:
+    """Build a retry prompt that includes the previous failed test and error.
+
+    Used by the feedback loop in agent.py when generated tests fail.
+    Provides the LLM with the original module context, the code it
+    previously generated, and the error so it can produce a corrected
+    version.
+
+    Args:
+        module_info: The module info dictionary (same as build_test_prompt).
+        previous_test_code: The test code from the previous attempt that failed.
+        error_message: The error message or pytest output from the failure.
+
+    Returns:
+        A formatted retry prompt string ready to be sent to an LLM.
+    """
+    original_prompt: str = build_test_prompt(module_info)
+
+    retry_prompt: str = (
+        f"{original_prompt}\n\n"
+        f"IMPORTANT: Your previous attempt to write tests for this module failed.\n"
+        f"Here is the test code you generated:\n\n"
+        f"```python\n"
+        f"{previous_test_code}\n"
+        f"```\n\n"
+        f"It failed with this error:\n"
+        f"{error_message}\n\n"
+        f"Please fix the test code to resolve this error.\n"
+        f"Common issues to check:\n"
+        f"- Missing imports at the top of the file\n"
+        f"- Incorrect function names or argument counts\n"
+        f"- Wrong expected values in assertions\n"
+        f"- Missing module that needs to be imported\n\n"
+        f"Write the complete corrected test file from scratch.\n"
+        f"Return ONLY the Python code, no explanation."
+    )
+
+    logger.info("Building retry prompt for '%s'", module_info.get("name", "?"))
+    return retry_prompt

@@ -7,7 +7,7 @@ correct, well-structured prompts for both Python and OpenAPI modules.
 
 import pytest
 
-from prompt_builder import build_test_prompt, build_system_prompt
+from prompt_builder import build_test_prompt, build_system_prompt, build_retry_prompt
 
 
 # ─────────────────────────────────────────────────────────────
@@ -156,3 +156,31 @@ def test_prompt_handles_string_args() -> None:
     assert "multiply" in prompt, "Function name 'multiply' not found in prompt"
     assert "x" in prompt, "Argument 'x' not found in prompt"
     assert "y" in prompt, "Argument 'y' not found in prompt"
+
+
+def test_retry_prompt_contains_error_message() -> None:
+    """Verify that the error message appears in the retry prompt."""
+    error_msg: str = "ImportError: No module named 'calculator'"
+    prompt: str = build_retry_prompt(
+        module_info=PYTHON_MODULE_INFO,
+        previous_test_code="def test_add(): assert add(1, 2) == 3",
+        error_message=error_msg,
+    )
+    assert error_msg in prompt, "Error message not found in retry prompt"
+    assert "previous attempt" in prompt.lower(), (
+        "Retry prompt should mention the previous attempt"
+    )
+
+
+def test_retry_prompt_contains_previous_code() -> None:
+    """Verify that the previous test code appears in the retry prompt."""
+    previous_code: str = "def test_add():\n    assert add(1, 2) == 3"
+    prompt: str = build_retry_prompt(
+        module_info=PYTHON_MODULE_INFO,
+        previous_test_code=previous_code,
+        error_message="AssertionError: assert 4 == 3",
+    )
+    assert previous_code in prompt, "Previous test code not found in retry prompt"
+    assert "calculator" in prompt, (
+        "Original module context should still be present in retry prompt"
+    )
