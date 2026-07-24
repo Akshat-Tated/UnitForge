@@ -42,6 +42,46 @@ logger: logging.Logger = logging.getLogger("unitforge.agent")
 
 
 # ─────────────────────────────────────────────────────────────
+# LLM output sanitisation
+# ─────────────────────────────────────────────────────────────
+
+def extract_python_code(raw_text: str) -> str:
+    """Extract Python code from LLM response.
+
+    LLMs often wrap code in markdown fences like ```python ... ```.
+    This function strips those fences and returns clean Python code.
+
+    Args:
+        raw_text: The raw LLM response string.
+
+    Returns:
+        Clean Python code with markdown fences removed.
+    """
+    import re
+
+    # Try to extract from ```python ... ``` block
+    pattern_with_lang: re.Match[str] | None = re.search(
+        r'```python\s*\n(.*?)\n\s*```',
+        raw_text,
+        re.DOTALL,
+    )
+    if pattern_with_lang:
+        return pattern_with_lang.group(1).strip()
+
+    # Try to extract from ``` ... ``` block (no language specified)
+    pattern_plain: re.Match[str] | None = re.search(
+        r'```\s*\n(.*?)\n\s*```',
+        raw_text,
+        re.DOTALL,
+    )
+    if pattern_plain:
+        return pattern_plain.group(1).strip()
+
+    # No markdown fences found — return as-is (already clean code)
+    return raw_text.strip()
+
+
+# ─────────────────────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────────────────────
 
@@ -232,7 +272,7 @@ def _process_task(
                 prompt=prompt,
                 system=system_prompt,
             )
-            test_code = llm_response.content
+            test_code = extract_python_code(llm_response.content)
         except Exception as exc:
             logger.error(
                 "LLM generation failed for module '%s': %s",
