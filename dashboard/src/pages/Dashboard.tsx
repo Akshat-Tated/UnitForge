@@ -4,6 +4,8 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Activity, Calendar, GitBranch, FileCode2, ChevronRight, Loader2, AlertCircle, Inbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchAllJobs } from '../api/client';
+import { useWebSocket } from '../hooks/useWebSocket';
+import toast, { Toaster } from 'react-hot-toast';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -41,12 +43,36 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
+  useWebSocket({
+    topics: ["/topic/jobs"],
+    onMessage: (_topic, data) => {
+      const updatedJob = data as TestJob;
+      setJobs((prev) => {
+        const exists = prev.find((j) => j.id === updatedJob.id);
+        if (exists) {
+          return prev.map((j) =>
+            j.id === updatedJob.id ? updatedJob : j
+          );
+        }
+        return [updatedJob, ...prev];
+      });
+
+      if (updatedJob.status === "DONE") {
+        toast.success(
+          `Job ${updatedJob.id.substring(0, 8)}... completed!`,
+          { duration: 4000 }
+        );
+      }
+    },
+  });
+
   const totalJobs = jobs.length;
   const runningJobs = jobs.filter(j => j.status === 'RUNNING').length;
   const doneJobs = jobs.filter(j => j.status === 'DONE').length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <Toaster />
       <header className="mb-12 flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-extrabold text-white tracking-tight flex items-center gap-3">
