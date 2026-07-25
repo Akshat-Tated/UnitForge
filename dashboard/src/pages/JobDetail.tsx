@@ -5,6 +5,7 @@ import { ArrowLeft, Play, LayoutGrid, Loader2, AlertCircle } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchJob, fetchJobResults } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 export const JobDetail = () => {
   const navigate = useNavigate();
@@ -57,6 +58,29 @@ export const JobDetail = () => {
     };
   }, [id]);
 
+  useWebSocket({
+    topics: [
+      `/topic/jobs/${id}`,
+      `/topic/jobs/${id}/results`,
+    ],
+    onMessage: (topic, data) => {
+      if (topic === `/topic/jobs/${id}`) {
+        setJob(data as TestJob);
+      }
+      if (topic === `/topic/jobs/${id}/results`) {
+        const newResult = data as TestResult;
+        setResults((prev) => {
+          const exists = prev.find((r) => r.id === newResult.id);
+          if (exists) {
+            return prev.map((r) => r.id === newResult.id ? newResult : r);
+          }
+          return [...prev, newResult];
+        });
+      }
+    },
+    enabled: job?.status === "RUNNING",
+  });
+
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -105,6 +129,15 @@ export const JobDetail = () => {
                 ID: {job?.id}
               </p>
               {job && <StatusBadge status={job.status} />}
+              {job?.status === "DONE" && (
+                <a
+                  href={`http://localhost:8080/api/jobs/${id}/download`}
+                  download={`unitforge-tests-${id?.substring(0, 8)}.zip`}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors ml-4"
+                >
+                  ⬇ Download Tests
+                </a>
+              )}
             </div>
           </div>
           <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-300 shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:shadow-[0_0_25px_rgba(79,70,229,0.6)]">
