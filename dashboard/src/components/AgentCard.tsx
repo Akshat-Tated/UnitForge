@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { JobStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { CheckCircle2, XCircle, Clock, Loader2, Code2, ChevronDown, ChevronUp } from 'lucide-react';
+import { CoverageBar } from './CoverageBar';
 
 interface AgentCardProps {
   moduleName: string;
@@ -40,34 +41,11 @@ export const AgentCard: React.FC<AgentCardProps> = ({
 
   const renderCoverage = () => {
     if (coveragePercent === undefined) return null;
-    const isNA = coveragePercent === 0.0;
-    const displayValue = isNA ? 'N/A' : `${coveragePercent}%`;
-    const progressValue = isNA ? 0 : coveragePercent;
     
     return (
-      <div className="flex flex-col items-end">
+      <div className="flex flex-col items-end w-48 mt-2 lg:mt-0">
         <span className="text-xs text-slate-400 font-medium mb-1.5 uppercase tracking-wider">Coverage</span>
-        <div className="flex items-center gap-3">
-          <div className="w-20 h-2 bg-slate-900 rounded-full overflow-hidden shadow-inner">
-            <div 
-              className={`h-full rounded-full transition-all duration-1000 ${
-                isNA ? 'bg-slate-700' :
-                progressValue >= 80 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
-                progressValue >= 50 ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 
-                'bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.5)]'
-              }`}
-              style={{ width: `${progressValue}%` }}
-            />
-          </div>
-          <span className={`text-lg font-bold ${
-            isNA ? 'text-slate-500' :
-            progressValue >= 80 ? 'text-emerald-400' : 
-            progressValue >= 50 ? 'text-amber-400' : 
-            'text-rose-400'
-          }`}>
-            {displayValue}
-          </span>
-        </div>
+        <CoverageBar percent={coveragePercent} />
       </div>
     );
   };
