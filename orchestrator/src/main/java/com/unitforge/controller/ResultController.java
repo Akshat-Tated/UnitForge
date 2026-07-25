@@ -2,8 +2,11 @@ package com.unitforge.controller;
 
 import com.unitforge.dto.AgentResultRequest;
 import com.unitforge.dto.TestResultResponse;
+import com.unitforge.model.JobStatus;
+import com.unitforge.model.TestJob;
 import com.unitforge.model.TestResult;
 import com.unitforge.service.JobService;
+import com.unitforge.service.WebSocketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +29,7 @@ import java.util.UUID;
 public class ResultController {
 
     private final JobService jobService;
+    private final WebSocketService webSocketService;
 
     @GetMapping("/{id}/results")
     public ResponseEntity<List<TestResultResponse>> getResults(@PathVariable UUID id) {
@@ -59,6 +63,14 @@ public class ResultController {
                 request.getCoveragePercent(),
                 request.getGeneratedTestCode(),
                 request.getAgentLog());
+
+        webSocketService.broadcastResultUpdate(saved);
+
+        // Check if job transitioned to DONE and broadcast if so
+        TestJob job = jobService.getJob(id);
+        if (job.getStatus() == JobStatus.DONE) {
+            webSocketService.broadcastJobUpdate(job);
+        }
 
         TestResultResponse response = TestResultResponse.builder()
                 .id(saved.getId())

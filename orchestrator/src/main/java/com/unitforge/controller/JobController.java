@@ -5,6 +5,7 @@ import com.unitforge.dto.CreateJobResponse;
 import com.unitforge.dto.JobStatusResponse;
 import com.unitforge.model.TestJob;
 import com.unitforge.service.JobService;
+import com.unitforge.service.WebSocketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,7 @@ import java.util.UUID;
 public class JobController {
 
     private final JobService jobService;
+    private final WebSocketService webSocketService;
 
     @GetMapping("/jobs")
     public ResponseEntity<List<JobStatusResponse>> getAllJobs() {
@@ -42,6 +44,7 @@ public class JobController {
     @PostMapping("/jobs")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
         TestJob job = jobService.createJob(request.getInputType(), request.getInputPath(), request.getModuleMap());
+        webSocketService.broadcastJobUpdate(job);
 
         CreateJobResponse response = CreateJobResponse.builder()
                 .jobId(job.getId())
