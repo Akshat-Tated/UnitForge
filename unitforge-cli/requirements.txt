@@ -1,1 +1,3 @@
-# placeholder - will be populated in Step 2
+click==8.1.7
+requests==2.32.0
+rich==13.7.0
