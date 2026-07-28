@@ -8,7 +8,7 @@
 
 Feed it a codebase. Get production-ready tests back. No manual effort.
 
-[![Status](https://img.shields.io/badge/status-phase%204%20complete-brightgreen)](https://github.com/Akshat-Tated/UnitForge)
+[![Status](https://img.shields.io/badge/status-phase%205%20complete-brightgreen)](https://github.com/Akshat-Tated/UnitForge)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
 [![Java](https://img.shields.io/badge/java-21-red)](https://adoptium.net)
@@ -141,79 +141,22 @@ python main.py --input ./my-project --type python
 
 ---
 
-## ⚡ Quick start
+## Quick start
 
-### Prerequisites
-
-| Tool | Version |
-|---|---|
-| Java | 21 (LTS) |
-| Python | 3.12 |
-| Node.js | 20 (LTS) |
-| Maven | 3.9+ |
-| Docker Desktop | 24+ |
-
-### 1. Clone
-
+### Option A — One command (CLI)
 ```bash
-git clone https://github.com/Akshat-Tated/UnitForge.git
-cd UnitForge
+pip install -e ./unitforge-cli
+unitforge generate ./my-project
 ```
 
-### 2. Configure LLM provider
-
+### Option B — Full stack
 ```bash
 cp .env.example .env
-```
-
-**Free (no API key needed):**
-```bash
-# Install Ollama from https://ollama.com
-ollama pull qwen2.5-coder:14b   # ~9GB, one-time download
-```
-
-Update `.env`:
-```env
-LLM_PROVIDER=ollama
-OLLAMA_MODEL=qwen2.5-coder:14b
-```
-
-**Paid (best quality, fastest):**
-```env
-LLM_PROVIDER=claude
-ANTHROPIC_API_KEY=sk-ant-api03-...
-```
-
-### 3. Start infrastructure
-
-```bash
 docker-compose up postgres redis -d
+cd orchestrator && mvn spring-boot:run   # terminal 1
+cd test-agents && python agent.py        # terminal 2
+cd dashboard && npm run dev              # terminal 3
 ```
-
-### 4. Start all services
-
-```bash
-# Terminal 1 — Orchestrator
-cd orchestrator && mvn spring-boot:run
-
-# Terminal 2 — Test agents
-cd test-agents && python agent.py
-
-# Terminal 3 — Dashboard
-cd dashboard && npm install && npm run dev
-```
-
-### 5. Submit your first job
-
-```bash
-cd analysis-engine
-python -m venv venv && venv\Scripts\activate   # Windows
-pip install -r requirements.txt
-
-python main.py --input ./tests/fixtures/sample_python_app --type python > module_map.json
-```
-
-Then POST to the orchestrator and watch the dashboard at **http://localhost:5173**.
 
 ---
 
@@ -275,11 +218,11 @@ UnitForge/
 
 ## 🗺 Roadmap
 
-- [x] **Phase 1** — Analysis engine, Spring Boot API, React dashboard, Docker ✅
-- [x] **Phase 2** — LLM integration, Redis workers, test agent pipeline ✅
-- [x] **Phase 3** — Real coverage measurement, feedback loop, DONE status ✅
-- [x] **Phase 4** — WebSocket live updates, test downloads, coverage bars ✅
-- [ ] **Phase 5** — CLI tool, GitHub URL support, JWT auth, GitHub Actions
+- [x] Phase 1 — Analysis engine, Spring Boot, React dashboard ✅
+- [x] Phase 2 — LLM integration, Redis worker, test agents ✅
+- [x] Phase 3 — Real coverage, feedback loop, DONE status ✅
+- [x] Phase 4 — WebSocket live updates, download, coverage bars ✅
+- [x] Phase 5 — CLI tool, GitHub URL, JWT auth, GitHub Actions ✅
 - [ ] **Phase 6** — Cloud version, managed hosting, team features
 
 ---
