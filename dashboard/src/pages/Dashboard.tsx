@@ -6,12 +6,19 @@ import { useNavigate } from 'react-router-dom';
 import { fetchAllJobs } from '../api/client';
 import { useWebSocket } from '../hooks/useWebSocket';
 import toast, { Toaster } from 'react-hot-toast';
+import { useAuthStore } from '../store/authStore';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<TestJob[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -85,6 +92,12 @@ export const Dashboard: React.FC = () => {
             Autonomous Test Generation Dashboard
           </p>
         </div>
+        <button 
+          onClick={handleLogout}
+          className="px-3 py-1 text-sm text-gray-400 hover:text-white transition-colors"
+        >
+          Logout
+        </button>
       </header>
 
       {!isLoading && !error && (
