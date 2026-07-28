@@ -26,3 +26,7 @@ unitforge:
     base-path: /api
   queue:
     task-key: unitforge:tasks
+  jwt:
+    secret: ${JWT_SECRET:unitforge-dev-secret-minimum-32-chars-long}
+    expiry-hours: ${JWT_EXPIRY_HOURS:24}
+  dev-mode: ${UNITFORGE_DEV_MODE:true}
