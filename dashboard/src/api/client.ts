@@ -24,3 +24,27 @@ export async function fetchJobResults(id: string): Promise<TestResult[]> {
   const response = await apiClient.get<TestResult[]>(`/jobs/${id}/results`);
   return response.data;
 }
+
+export async function login(
+  email: string,
+  password: string
+): Promise<string> {
+  const response = await apiClient.post<{ token: string }>("/auth/login", {
+    email,
+    password,
+  });
+  return response.data.token;
+}
+
+export async function register(
+  name: string,
+  email: string,
+  password: string
+): Promise<string> {
+  const response = await apiClient.post<{ token: string }>("/auth/register", {
+    name,
+    email,
+    password,
+  });
+  return response.data.token;
+}
