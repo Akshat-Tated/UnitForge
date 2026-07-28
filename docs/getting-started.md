@@ -4,6 +4,25 @@ This guide walks you through setting up UnitForge locally from scratch.
 
 ---
 
+## Fastest way to start (CLI)
+
+```bash
+# 1. Start infrastructure
+docker-compose up postgres redis -d
+
+# 2. Start orchestrator
+cd orchestrator && mvn spring-boot:run
+
+# 3. Start test agent
+cd test-agents && python agent.py
+
+# 4. Install and use the CLI
+cd unitforge-cli && pip install -e .
+unitforge generate ./my-project
+```
+
+---
+
 ## Prerequisites
 
 Install these before you begin:
