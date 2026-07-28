@@ -1,0 +1,62 @@
+# ============================================================
+# UnitForge CI — Auto-generate unit tests on every PR
+# 
+# USAGE: Copy this file to your project's .github/workflows/
+# and set these secrets in your GitHub repo settings:
+#   UNITFORGE_API_URL  — URL of your UnitForge cloud instance
+#   UNITFORGE_TOKEN    — Your UnitForge API token (from /api/auth/login)
+# ============================================================
+
+name: UnitForge — Generate Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  generate-tests:
+    runs-on: ubuntu-latest
+    name: Generate unit tests with UnitForge
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install UnitForge CLI
+        run: pip install unitforge-cli
+
+      - name: Generate tests
+        env:
+          UNITFORGE_API_URL: ${{ secrets.UNITFORGE_API_URL }}
+          UNITFORGE_TOKEN: ${{ secrets.UNITFORGE_TOKEN }}
+        run: |
+          unitforge generate . \
+            --orchestrator $UNITFORGE_API_URL \
+            --download \
+            --output-dir ./unitforge-generated-tests
+
+      - name: Upload generated tests as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unitforge-tests-${{ github.sha }}
+          path: ./unitforge-generated-tests/
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚙️ **UnitForge** generated unit tests for this PR. Download them from the Actions artifacts tab.'
+            })
