@@ -195,6 +195,17 @@ def _report_result(
         )
 
 
+def report_result(job_id: str, payload: dict[str, Any], orchestrator_url: str) -> None:
+    """POST result to orchestrator."""
+    url = f"{orchestrator_url}/api/jobs/{job_id}/results"
+    response = requests.post(url, json=payload, timeout=30)
+    response.raise_for_status()
+    logger.info(
+        f"Reported result for module '{payload['moduleName']}' "
+        f"to {url} (status={response.status_code})"
+    )
+
+
 # ─────────────────────────────────────────────────────────────
 # Task processing
 # ─────────────────────────────────────────────────────────────
@@ -236,6 +247,28 @@ def _process_task(
             agent_log=f"Failed to parse moduleInfoJson: {exc}",
         )
         return
+
+    # Skip modules with no testable content
+    functions = module_info.get("functions", [])
+    classes = module_info.get("classes", [])
+    endpoints = module_info.get("endpoints", [])
+
+    if not functions and not classes and not endpoints:
+        logger.info(
+            f"Skipping module '{module_name}' — no functions, "
+            f"classes, or endpoints to test"
+        )
+        # Report as skipped (passed=True, coverage=0, with a note)
+        result_payload = {
+            "moduleName": module_name,
+            "passed": True,
+            "coveragePercent": 0.0,
+            "generatedTestCode": "# No testable content found in this module",
+            "agentLog": "Skipped — module has no functions, classes, or endpoints",
+        }
+        # POST the skip result to orchestrator
+        report_result(job_id, result_payload, config["orchestrator_url"])
+        return  # move to next task
 
     # ── Extract source code for coverage measurement ─────────
     source_code: str = module_info.get("source_code", "")

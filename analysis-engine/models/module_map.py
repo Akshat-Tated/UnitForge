@@ -94,6 +94,7 @@ class ModuleInfo:
     classes: list[ClassInfo] = field(default_factory=list)
     imports: list[str] = field(default_factory=list)
     endpoints: list[EndpointInfo] = field(default_factory=list)
+    source_code: str = ""
 
 
 @dataclass

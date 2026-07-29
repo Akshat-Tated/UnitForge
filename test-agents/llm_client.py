@@ -154,6 +154,99 @@ class OpenAIProvider(BaseLLMProvider):
 
 
 # ─────────────────────────────────────────────────────────────
+# Gemini provider (Google AI Studio)
+# ─────────────────────────────────────────────────────────────
+
+class GeminiProvider(BaseLLMProvider):
+    """
+    Calls the Google Gemini API.
+    Gemini 1.5 Flash is completely FREE with generous rate limits.
+    No credit card needed.
+
+    Setup:
+        1. Go to https://aistudio.google.com
+        2. Click Get API Key → Create API Key
+        3. Set GOOGLE_API_KEY in .env
+        4. Set LLM_PROVIDER=gemini in .env
+
+    Recommended models:
+        gemini-1.5-flash   → free, fast, good quality (recommended)
+        gemini-1.5-pro     → paid, better quality
+        gemini-2.0-flash   → free, latest, best free option
+    """
+
+    DEFAULT_MODEL = "gemini-2.0-flash"
+
+    def __init__(self, api_key: str, model: str = DEFAULT_MODEL) -> None:
+        """
+        Initialise the Gemini provider.
+
+        Args:
+            api_key: Your Google AI Studio API key
+            model: The Gemini model to use
+        """
+        try:
+            import google.generativeai as genai
+            self._genai = genai
+        except ImportError:
+            raise ImportError(
+                "google-generativeai package not installed.\n"
+                "Run: pip install google-generativeai"
+            )
+        self._genai.configure(api_key=api_key)
+        self._model_name = model
+        self._model = self._genai.GenerativeModel(
+            model_name=model,
+            generation_config={
+                "temperature": 0.2,      # lower = more consistent code
+                "max_output_tokens": 4096,
+            }
+        )
+        logger.info(f"GeminiProvider ready — model={self._model_name}")
+
+    def generate(self, prompt: str, system: str = "") -> LLMResponse:
+        """
+        Send a prompt to Gemini and return the response.
+
+        Args:
+            prompt: The test generation request
+            system: System prompt (prepended to the user prompt)
+
+        Returns:
+            LLMResponse with generated test code
+        """
+        # Gemini combines system and user prompt into one
+        full_prompt = f"{system}\n\n{prompt}" if system else prompt
+
+        logger.debug(
+            f"Calling Gemini API — model={self._model_name}, "
+            f"prompt_len={len(full_prompt)}"
+        )
+
+        response = self._model.generate_content(full_prompt)
+
+        # Extract text safely
+        try:
+            content = response.text
+        except Exception:
+            content = ""
+            logger.warning("Gemini returned empty response")
+
+        # Gemini does not expose token counts in the same way
+        # Use character count as approximation
+        return LLMResponse(
+            content=content,
+            provider="gemini",
+            model=self._model_name,
+            input_tokens=len(full_prompt) // 4,    # rough estimate
+            output_tokens=len(content) // 4,
+        )
+
+    def provider_name(self) -> str:
+        return "gemini"
+
+
+# ─────────────────────────────────────────────────────────────
 # Ollama provider (FREE — runs locally)
 # ─────────────────────────────────────────────────────────────
 
@@ -317,6 +410,17 @@ class LLMClient:
                 )
             return cls(OpenAIProvider(api_key=api_key, model=model))
 
+        if llm_provider == "gemini":
+            api_key = os.getenv("GOOGLE_API_KEY")
+            if not api_key:
+                raise EnvironmentError(
+                    "LLM_PROVIDER=gemini but GOOGLE_API_KEY is not set.\n"
+                    "Get a free key at https://aistudio.google.com\n"
+                    "Then add GOOGLE_API_KEY=your-key to .env"
+                )
+            model = os.getenv("GEMINI_MODEL", GeminiProvider.DEFAULT_MODEL)
+            return cls(GeminiProvider(api_key=api_key, model=model))
+
         if llm_provider == "ollama":
             base_url = os.getenv("OLLAMA_BASE_URL", OllamaProvider.DEFAULT_BASE_URL)
             model = os.getenv("OLLAMA_MODEL", OllamaProvider.DEFAULT_MODEL)
@@ -328,7 +432,7 @@ class LLMClient:
 
         raise ValueError(
             f"Unknown LLM_PROVIDER='{llm_provider}'. "
-            "Valid options: claude | openai | ollama | stub"
+            "Valid options: claude | openai | gemini | ollama | stub"
         )
 
     def generate(self, prompt: str, system: str = "") -> LLMResponse:

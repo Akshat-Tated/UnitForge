@@ -67,3 +67,9 @@ Desktop.ini
 tmp/
 temp/
 *.tmp
+
+# Generated test archives
+unitforge-cli/unitforge-tests/
+
+# Extracted generated tests
+unitforge-cli/unitforge-tests/extracted/

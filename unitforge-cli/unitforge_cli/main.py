@@ -65,7 +65,13 @@ def cli():
     default=False,
     help="Submit job and exit immediately without waiting for results",
 )
-def generate(input_path, type, orchestrator, download, output_dir, no_wait):
+@click.option(
+    "--timeout",
+    default=1800,
+    show_default=True,
+    help="Maximum seconds to wait for job completion (default 1800 = 30 min)",
+)
+def generate(input_path, type, orchestrator, download, output_dir, no_wait, timeout):
     """Generate unit tests for a codebase or API spec.
 
     INPUT_PATH can be:
@@ -140,6 +146,7 @@ def generate(input_path, type, orchestrator, download, output_dir, no_wait):
             result = api_client.poll_job_until_done(
                 job_id=job_id,
                 orchestrator_url=orchestrator,
+                timeout=timeout,
             )
 
         output.print_job_result(result)

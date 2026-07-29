@@ -99,7 +99,7 @@ def poll_job_until_done(
     job_id: str,
     orchestrator_url: str = "http://localhost:8080",
     poll_interval: int = 5,
-    timeout: int = 600,
+    timeout: int = 1800,
 ) -> JobResult:
     """
     Poll the orchestrator every poll_interval seconds until job is DONE or FAILED.

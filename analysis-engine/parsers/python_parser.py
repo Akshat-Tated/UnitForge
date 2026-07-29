@@ -168,6 +168,7 @@ def parse_python_file(file_path: str) -> ModuleInfo:
         functions=functions,
         classes=classes,
         imports=imports,
+        source_code=source,
     )
 
 
