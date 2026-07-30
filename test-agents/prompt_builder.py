@@ -244,7 +244,27 @@ def build_test_prompt(module_info: dict[str, Any], module_code: str = "") -> str
 
     # Default to python
     logger.info("Building Python test prompt for '%s'", module_info.get("name", "?"))
-    return _build_python_prompt(module_info, module_code)
+    prompt = _build_python_prompt(module_info, module_code)
+
+    functions = module_info.get("functions", [])
+    # Add hint for boolean validator functions
+    validator_functions = [
+        f for f in functions
+        if f.get("name", "").startswith("is_") or
+           f.get("name", "").startswith("validate")
+    ]
+
+    if validator_functions:
+        prompt += """
+
+IMPORTANT for validator functions (functions starting with is_ or validate):
+- Test BOTH True and False cases
+- For is_email: "user@example.com" should return True, "notanemail" should return False
+- For is_phone: "1234567890" (10 digits) should return True, "123" (too short) should return False
+- Always test valid inputs that PASS and invalid inputs that FAIL
+- Never assume a validator returns True for everything
+"""
+    return prompt
 
 
 def build_retry_prompt(

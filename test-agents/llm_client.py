@@ -199,7 +199,7 @@ class GeminiProvider(BaseLLMProvider):
             model_name=model,
             generation_config={
                 "temperature": 0.2,      # lower = more consistent code
-                "max_output_tokens": 4096,
+                "max_output_tokens": 8192,
             }
         )
         logger.info(f"GeminiProvider ready — model={self._model_name}")
@@ -228,6 +228,33 @@ class GeminiProvider(BaseLLMProvider):
         # Extract text safely
         try:
             content = response.text
+
+            # Detect truncated output — last non-empty line should end with
+            # a complete statement, not mid-definition
+            lines = [l for l in content.strip().split("\n") if l.strip()]
+            if lines:
+                last_line = lines[-1].strip()
+                # If last line looks like an incomplete function/class definition
+                # (no colon at end, starts with def/class), the output was truncated
+                if (last_line.startswith("def ") or last_line.startswith("class ")) \
+                        and not last_line.endswith(":"):
+                    logger.warning(
+                        "Gemini output appears truncated — last line: "
+                        f"'{last_line[:80]}'"
+                    )
+                    # Trim to the last complete function by finding the last
+                    # complete def block
+                    complete_lines = []
+                    for i, line in enumerate(content.split("\n")):
+                        stripped = line.strip()
+                        if (stripped.startswith("def ") or
+                                stripped.startswith("class ")) \
+                                and not stripped.endswith(":") \
+                                and i == len(content.split("\n")) - 1:
+                            break
+                        complete_lines.append(line)
+                    content = "\n".join(complete_lines)
+                    logger.info("Trimmed truncated output to last complete function")
         except Exception:
             content = ""
             logger.warning("Gemini returned empty response")
