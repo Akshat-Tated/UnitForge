@@ -46,6 +46,18 @@ public class JwtService {
         }
     }
 
+    public java.util.Optional<String> extractEmailFromHeader(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return java.util.Optional.empty();
+        }
+        String token = authHeader.substring(7);
+        try {
+            return java.util.Optional.of(extractEmail(token));
+        } catch (Exception e) {
+            return java.util.Optional.empty();
+        }
+    }
+
     private SecretKey getKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }

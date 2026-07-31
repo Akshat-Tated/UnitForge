@@ -29,10 +29,22 @@ public class JobController {
 
     private final JobService jobService;
     private final WebSocketService webSocketService;
+    private final com.unitforge.service.JwtService jwtService;
+    private final com.unitforge.repository.TestJobRepository testJobRepository;
 
     @GetMapping("/jobs")
-    public ResponseEntity<List<JobStatusResponse>> getAllJobs() {
-        List<TestJob> jobs = jobService.getAllJobs();
+    public ResponseEntity<List<JobStatusResponse>> getAllJobs(
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false)
+            String authHeader) {
+
+        java.util.Optional<String> emailOpt = jwtService.extractEmailFromHeader(authHeader);
+        List<TestJob> jobs;
+
+        if (emailOpt.isPresent()) {
+            jobs = testJobRepository.findByOwnerEmailOrderByCreatedAtDesc(emailOpt.get());
+        } else {
+            jobs = testJobRepository.findAllByOrderByCreatedAtDesc();
+        }
 
         List<JobStatusResponse> response = jobs.stream()
                 .map(this::toJobStatusResponse)
@@ -42,8 +54,17 @@ public class JobController {
     }
 
     @PostMapping("/jobs")
-    public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
+    public ResponseEntity<CreateJobResponse> createJob(
+            @Valid @RequestBody CreateJobRequest request,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false)
+            String authHeader) {
+        
+        String ownerEmail = jwtService.extractEmailFromHeader(authHeader).orElse("anonymous");
+
         TestJob job = jobService.createJob(request.getInputType(), request.getInputPath(), request.getModuleMap());
+        job.setOwnerEmail(ownerEmail);
+        testJobRepository.save(job);
+        
         webSocketService.broadcastJobUpdate(job);
 
         CreateJobResponse response = CreateJobResponse.builder()

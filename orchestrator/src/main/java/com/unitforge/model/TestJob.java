@@ -48,6 +48,9 @@ public class TestJob {
 
     private Integer totalModules;
 
+    @Column(name = "owner_email")
+    private String ownerEmail;
+
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();
