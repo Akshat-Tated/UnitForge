@@ -18,8 +18,9 @@ export function useWebSocket({
   useEffect(() => {
     if (!enabled) return;
 
+    const wsBase = import.meta.env.VITE_WS_URL || "http://localhost:8080";
     const client = new Client({
-      webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
+      webSocketFactory: () => new SockJS(`${wsBase}/ws`),
       reconnectDelay: 5000,
       onConnect: () => {
         topics.forEach((topic) => {

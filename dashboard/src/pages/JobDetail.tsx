@@ -131,7 +131,7 @@ export const JobDetail = () => {
               {job && <StatusBadge status={job.status} />}
               {job?.status === "DONE" && (
                 <a
-                  href={`http://localhost:8080/api/jobs/${id}/download`}
+                  href={`${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/jobs/${id}/download`}
                   download={`unitforge-tests-${id?.substring(0, 8)}.zip`}
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors ml-4"
                 >
