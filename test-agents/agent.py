@@ -122,8 +122,18 @@ def _connect_redis(host: str, port: int) -> Any:
         ConnectionError: If Redis is unreachable.
     """
     import redis
+    import ssl as ssl_lib
 
-    client: Any = redis.Redis(host=host, port=port, decode_responses=True)
+    redis_ssl = os.getenv("REDIS_SSL", "false").lower() == "true"
+
+    client: Any = redis.Redis(
+        host=host,
+        port=port,
+        password=os.getenv("REDIS_PASSWORD", None) or None,
+        ssl=redis_ssl,
+        ssl_cert_reqs=ssl_lib.CERT_NONE if redis_ssl else None,
+        decode_responses=True,
+    )
 
     try:
         client.ping()
