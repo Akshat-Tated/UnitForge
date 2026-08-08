@@ -22,34 +22,36 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Value("${unitforge.cors.allowed-origins:*}")
-    private String allowedOrigins;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        String devMode = System.getenv().getOrDefault("UNITFORGE_DEV_MODE", "true");
+        boolean devMode = Boolean.parseBoolean(
+            System.getenv().getOrDefault("UNITFORGE_DEV_MODE", "true")
+        );
 
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> {
-                // Public endpoints — no token needed
-                auth.requestMatchers(
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            );
+
+        if (devMode) {
+            http.authorizeHttpRequests(auth ->
+                auth.anyRequest().permitAll()
+            );
+        } else {
+            http.authorizeHttpRequests(auth -> auth
+                .requestMatchers(
                     "/api/auth/**",
                     "/ws/**",
                     "/health",
                     "/actuator/health"
-                ).permitAll();
+                ).permitAll()
+                .anyRequest().authenticated()
+            );
+        }
 
-                if ("true".equalsIgnoreCase(devMode)) {
-                    auth.anyRequest().permitAll();
-                } else {
-                    // Everything else requires auth
-                    auth.anyRequest().authenticated();
-                }
-            });
         return http.build();
     }
 
@@ -62,14 +64,28 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Split by comma to support multiple origins
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        config.setAllowedOriginPatterns(origins);
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(false);
+        String allowedOrigins = System.getenv()
+            .getOrDefault("CORS_ALLOWED_ORIGINS", "*");
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        if ("*".equals(allowedOrigins)) {
+            config.addAllowedOriginPattern("*");
+            config.setAllowCredentials(false);
+        } else {
+            // Specific origins — split by comma
+            Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .forEach(config::addAllowedOrigin);
+            config.setAllowCredentials(false);
+        }
+
+        config.setAllowedMethods(
+            List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        );
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization"));
+
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }

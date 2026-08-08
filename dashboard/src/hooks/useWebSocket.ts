@@ -20,8 +20,13 @@ export function useWebSocket({
 
     const wsBase = import.meta.env.VITE_WS_URL || "http://localhost:8080";
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${wsBase}/ws`),
+      webSocketFactory: () =>
+        new SockJS(`${wsBase}/ws`, null, {
+          transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+        }),
       reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
       onConnect: () => {
         topics.forEach((topic) => {
           client.subscribe(topic, (message) => {
