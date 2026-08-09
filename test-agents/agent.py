@@ -205,10 +205,28 @@ def _report_result(
         )
 
 
-def report_result(job_id: str, payload: dict[str, Any], orchestrator_url: str) -> None:
+def report_result(
+    job_id: str,
+    payload: dict[str, Any],
+    orchestrator_url: str,
+) -> None:
     """POST result to orchestrator."""
     url = f"{orchestrator_url}/api/jobs/{job_id}/results"
-    response = requests.post(url, json=payload, timeout=30)
+
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+
+    # Optional: send agent token if configured
+    # This allows the orchestrator to identify the agent
+    agent_token: str = os.getenv("AGENT_TOKEN", "")
+    if agent_token:
+        headers["Authorization"] = f"Bearer {agent_token}"
+
+    response = requests.post(
+        url,
+        json=payload,
+        headers=headers,
+        timeout=30,
+    )
     response.raise_for_status()
     logger.info(
         f"Reported result for module '{payload['moduleName']}' "
