@@ -54,6 +54,9 @@ public class TestResult {
     @Column(columnDefinition = "TEXT")
     private String agentLog;
 
+    @Column(columnDefinition = "TEXT")
+    private String moduleInfoJson;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

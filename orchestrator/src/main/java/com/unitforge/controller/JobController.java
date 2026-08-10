@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -31,6 +32,8 @@ public class JobController {
     private final WebSocketService webSocketService;
     private final com.unitforge.service.JwtService jwtService;
     private final com.unitforge.repository.TestJobRepository testJobRepository;
+    private final com.unitforge.repository.TestResultRepository testResultRepository;
+    private final com.unitforge.service.TaskQueueService taskQueueService;
 
     @GetMapping("/jobs")
     public ResponseEntity<List<JobStatusResponse>> getAllJobs(
@@ -79,6 +82,59 @@ public class JobController {
     public ResponseEntity<JobStatusResponse> getJob(@PathVariable UUID id) {
         TestJob job = jobService.getJob(id);
         return ResponseEntity.ok(toJobStatusResponse(job));
+    }
+
+    @PostMapping("/jobs/{id}/rerun")
+    public ResponseEntity<Map<String, Object>> rerunFailedModules(
+            @PathVariable UUID id) {
+
+        // Get all failed results for this job
+        List<com.unitforge.model.TestResult> failedResults = testResultRepository
+            .findByJobId(id)
+            .stream()
+            .filter(r -> !r.isPassed())
+            .toList();
+
+        if (failedResults.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                "message", "No failed modules to rerun",
+                "requeued", 0
+            ));
+        }
+
+        // Get the original job to rebuild module tasks
+        TestJob job = testJobRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Job not found"));
+
+        // Re-queue each failed module
+        int requeued = 0;
+        for (com.unitforge.model.TestResult result : failedResults) {
+            Map<String, String> task = Map.of(
+                "jobId", id.toString(),
+                "moduleName", result.getModuleName(),
+                "moduleType", job.getInputType(),
+                "moduleInfoJson", result.getModuleInfoJson() != null
+                    ? result.getModuleInfoJson()
+                    : "{\"name\":\"" + result.getModuleName() + "\"}"
+            );
+            try {
+                String taskJson = new com.fasterxml.jackson.databind
+                    .ObjectMapper().writeValueAsString(task);
+                taskQueueService.pushTask(taskJson);
+                requeued++;
+            } catch (Exception e) {
+                // Failed to requeue module
+            }
+        }
+
+        // Reset job status to RUNNING
+        job.setStatus(com.unitforge.model.JobStatus.RUNNING);
+        testJobRepository.save(job);
+
+        return ResponseEntity.ok(Map.of(
+            "message", requeued + " module(s) requeued for rerun",
+            "requeued", requeued
+        ));
     }
 
     private JobStatusResponse toJobStatusResponse(TestJob job) {

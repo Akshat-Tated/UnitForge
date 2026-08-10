@@ -3,7 +3,8 @@ import { JobStatus, type TestJob, type TestResult } from '../types';
 import { AgentCard } from '../components/AgentCard';
 import { ArrowLeft, Play, LayoutGrid, Loader2, AlertCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchJob, fetchJobResults } from '../api/client';
+import { fetchJob, fetchJobResults, rerunFailedModules } from '../api/client';
+import toast from 'react-hot-toast';
 import { StatusBadge } from '../components/StatusBadge';
 import { useWebSocket } from '../hooks/useWebSocket';
 
@@ -15,6 +16,22 @@ export const JobDetail = () => {
   const [results, setResults] = useState<TestResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [rerunning, setRerunning] = useState(false);
+
+  const handleRerun = async () => {
+    if (!id) return;
+    setRerunning(true);
+    try {
+      const result = await rerunFailedModules(id);
+      toast.success(result.message);
+      // Refresh results after requeue
+      setTimeout(() => fetchJobResults(id).then(setResults), 2000);
+    } catch (error) {
+      toast.error("Failed to rerun modules. Is the agent running?");
+    } finally {
+      setRerunning(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -140,10 +157,16 @@ export const JobDetail = () => {
               )}
             </div>
           </div>
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-300 shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:shadow-[0_0_25px_rgba(79,70,229,0.6)]">
-            <Play className="w-4 h-4 fill-current" />
-            Rerun Failed Modules
-          </button>
+          {results.some(r => !r.passed) && (
+            <button
+              onClick={handleRerun}
+              disabled={rerunning || job?.status !== "DONE"}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-300 shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] disabled:opacity-50"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              {rerunning ? "Requeueing..." : "Rerun Failed Modules"}
+            </button>
+          )}
         </div>
       </header>
 

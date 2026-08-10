@@ -26,4 +26,6 @@ public class AgentResultRequest {
     private String generatedTestCode;
 
     private String agentLog;
+
+    private String moduleInfoJson;
 }

@@ -45,6 +45,15 @@ export async function fetchJobResults(id: string): Promise<TestResult[]> {
   return response.data;
 }
 
+export async function rerunFailedModules(
+  id: string
+): Promise<{ message: string; requeued: number }> {
+  const response = await apiClient.post(
+    `/jobs/${id}/rerun`
+  );
+  return response.data;
+}
+
 export async function login(
   email: string,
   password: string

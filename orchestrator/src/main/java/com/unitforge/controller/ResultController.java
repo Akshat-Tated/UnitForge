@@ -64,6 +64,11 @@ public class ResultController {
                 request.getGeneratedTestCode(),
                 request.getAgentLog());
 
+        // Save moduleInfoJson for potential rerun
+        if (request.getModuleInfoJson() != null) {
+            saved.setModuleInfoJson(request.getModuleInfoJson());
+        }
+
         webSocketService.broadcastResultUpdate(saved);
 
         // Check if job transitioned to DONE and broadcast if so
