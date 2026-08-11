@@ -7,12 +7,14 @@ import { fetchAllJobs } from '../api/client';
 import { useWebSocket } from '../hooks/useWebSocket';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
+import { SubmitJobModal } from "../components/SubmitJobModal";
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<TestJob[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const { logout } = useAuthStore();
 
   const handleLogout = () => {
@@ -20,34 +22,26 @@ export const Dashboard: React.FC = () => {
     navigate("/login");
   };
 
+  const fetchJobs = async () => {
+    try {
+      const data = await fetchAllJobs();
+      setJobs(data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load jobs. Is the orchestrator running?');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleJobCreated = (_jobId: string) => {
+    fetchJobs();
+  };
+
   useEffect(() => {
-    let mounted = true;
-
-    const loadJobs = async () => {
-      try {
-        const data = await fetchAllJobs();
-        if (mounted) {
-          setJobs(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError('Failed to load jobs. Is the orchestrator running?');
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadJobs();
-    const intervalId = setInterval(loadJobs, 10000);
-
-    return () => {
-      mounted = false;
-      clearInterval(intervalId);
-    };
+    fetchJobs();
+    const intervalId = setInterval(fetchJobs, 10000);
+    return () => clearInterval(intervalId);
   }, []);
 
   useWebSocket({
@@ -92,12 +86,26 @@ export const Dashboard: React.FC = () => {
             Autonomous Test Generation Dashboard
           </p>
         </div>
-        <button 
-          onClick={handleLogout}
-          className="px-3 py-1 text-sm text-gray-400 hover:text-white transition-colors"
-        >
-          Logout
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowSubmitModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+          >
+            + Generate Tests
+          </button>
+          <button
+            onClick={() => navigate("/settings")}
+            className="px-3 py-1 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            Settings
+          </button>
+          <button 
+            onClick={handleLogout}
+            className="px-3 py-1 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       {!isLoading && !error && (
@@ -194,6 +202,11 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+      <SubmitJobModal
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        onJobCreated={handleJobCreated}
+      />
     </div>
   );
 };

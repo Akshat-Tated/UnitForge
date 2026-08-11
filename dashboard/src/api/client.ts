@@ -77,3 +77,41 @@ export async function register(
   });
   return response.data.token;
 }
+
+// Calls the analysis engine service
+export async function analyzeUrl(
+  url: string,
+  inputType: string
+): Promise<{ success: boolean; module_count: number; module_map: object }> {
+  const analysisEngineUrl =
+    import.meta.env.VITE_ANALYSIS_ENGINE_URL ||
+    "http://localhost:8001";
+  const response = await fetch(`${analysisEngineUrl}/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, input_type: inputType }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Analysis failed");
+  }
+  return response.json();
+}
+
+// Submits the analyzed module map as a job
+export async function submitJob(
+  inputType: string,
+  inputPath: string,
+  moduleMap: object
+): Promise<{ id: string; status: string }> {
+  const response = await apiClient.post("/jobs", {
+    inputType,
+    inputPath,
+    moduleMap,
+  });
+  return response.data;
+}
+
+export async function saveApiKey(apiKey: string): Promise<void> {
+  await apiClient.post("/users/apikey", { apiKey });
+}
