@@ -1,0 +1,9 @@
+# Never copy these into Docker
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+*.log
+unitforge-tests/

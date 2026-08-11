@@ -476,9 +476,14 @@ def main() -> None:
 
     # ── Load configuration ───────────────────────────────────
     config: dict[str, Any] = _load_config()
-    logger.info("Config: redis=%s:%d, orchestrator=%s, max_retries=%d",
-                config["redis_host"], config["redis_port"],
-                config["orchestrator_url"], config["max_retry_attempts"])
+    
+    redis_ssl = os.getenv("REDIS_SSL", "false").lower() == "true"
+    mode = "CLOUD" if redis_ssl else "LOCAL"
+    
+    logger.info(f"Running in {mode} mode")
+    logger.info(f"Redis: {config['redis_host']}:{config['redis_port']} (SSL: {redis_ssl})")
+    logger.info(f"Orchestrator: {config['orchestrator_url']}")
+    logger.info(f"LLM provider: {os.getenv('LLM_PROVIDER', 'stub')}")
 
     # ── Connect to Redis ─────────────────────────────────────
     try:
@@ -538,6 +543,26 @@ def main() -> None:
                 os.environ["LLM_PROVIDER"] = "gemini"
                 llm: LLMClient = LLMClient.from_env()
             else:
+                if not os.getenv("GOOGLE_API_KEY"):
+                    logger.warning(
+                        f"No API key available for user {owner_email}. "
+                        "User must add their Gemini key in Settings."
+                    )
+                    module_name: str = task.get("moduleName", "unknown")
+                    job_id: str = task.get("jobId", "unknown")
+                    report_result(job_id, {
+                        "moduleName": module_name,
+                        "passed": False,
+                        "coveragePercent": 0.0,
+                        "generatedTestCode": "",
+                        "agentLog": (
+                            "No Gemini API key configured. "
+                            "Please add your Gemini API key in Settings → "
+                            "https://aistudio.google.com to get a free key."
+                        ),
+                    }, config["orchestrator_url"])
+                    continue
+                
                 logger.info(
                     f"Using default LLM client (no personal key for {owner_email})"
                 )

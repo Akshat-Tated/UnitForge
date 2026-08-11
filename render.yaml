@@ -1,4 +1,6 @@
 services:
+
+  # ─── Orchestrator API ────────────────────────────────────
   - type: web
     name: unitforge-api
     runtime: docker
@@ -23,11 +25,54 @@ services:
         value: 6379
       - key: REDIS_PASSWORD
         sync: false
+      - key: REDIS_SSL
+        value: true
       - key: JWT_SECRET
         generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
       - key: UNITFORGE_DEV_MODE
         value: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
       - key: SERVER_PORT
         value: 8080
+
+  # ─── Test Agent Worker ───────────────────────────────────
+  - type: worker
+    name: unitforge-agent
+    runtime: docker
+    dockerfilePath: ./test-agents/Dockerfile
+    dockerContext: ./test-agents
+    plan: free
+    envVars:
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: 6379
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: REDIS_SSL
+        value: true
+      - key: ORCHESTRATOR_URL
+        value: https://unitforge-api.onrender.com
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: MAX_RETRY_ATTEMPTS
+        value: 2
+      - key: GOOGLE_API_KEY
+        sync: false
+
+  # ─── Analysis Engine ─────────────────────────────────────
+  - type: web
+    name: unitforge-analysis
+    runtime: docker
+    dockerfilePath: ./analysis-engine/Dockerfile
+    dockerContext: ./analysis-engine
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8001
