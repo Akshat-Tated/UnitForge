@@ -223,7 +223,7 @@ UnitForge/
 - [x] Phase 3 — Real coverage, feedback loop, DONE status ✅
 - [x] Phase 4 — WebSocket live updates, download, coverage bars ✅
 - [x] Phase 5 — CLI tool, GitHub URL, JWT auth, GitHub Actions ✅
-- [ ] **Phase 6** — Cloud version, managed hosting, team features
+- [x] **Phase 6** — Cloud version, managed hosting, team features
 
 ---
 
