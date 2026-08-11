@@ -35,7 +35,10 @@ public class User {
     
     @Column(nullable = false)
     private String name;
-    
+
+    @Column(name = "gemini_api_key_encrypted")
+    private String geminiApiKeyEncrypted;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }
