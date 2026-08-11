@@ -235,6 +235,43 @@ def report_result(
 
 
 # ─────────────────────────────────────────────────────────────
+# User API key (BYOK — Bring Your Own Key)
+# ─────────────────────────────────────────────────────────────
+
+def get_user_api_key(
+    owner_email: str,
+    orchestrator_url: str,
+) -> Optional[str]:
+    """Fetch the decrypted Gemini API key for a job owner.
+
+    Returns None if no key is configured for this user.
+    Falls back to GOOGLE_API_KEY env var if not found.
+
+    Args:
+        owner_email: The email of the job owner.
+        orchestrator_url: Base URL of the orchestrator service.
+
+    Returns:
+        The decrypted API key string, or None.
+    """
+    if not owner_email or owner_email == "anonymous":
+        return None
+    try:
+        response = requests.get(
+            f"{orchestrator_url}/api/users/apikey/{owner_email}",
+            timeout=10,
+        )
+        if response.status_code == 200:
+            return response.json().get("apiKey")
+        return None
+    except Exception as e:
+        logger.warning(
+            f"Could not fetch API key for {owner_email}: {e}"
+        )
+        return None
+
+
+# ─────────────────────────────────────────────────────────────
 # Task processing
 # ─────────────────────────────────────────────────────────────
 
@@ -486,9 +523,29 @@ def main() -> None:
                 logger.error("Failed to parse task JSON: %s — raw: %s", exc, task_json[:200])
                 continue
 
+            # ── BYOK: use owner's personal API key if available ──
+            owner_email: str = task.get("ownerEmail", "anonymous")
+            user_api_key: Optional[str] = get_user_api_key(
+                owner_email, config["orchestrator_url"]
+            )
+
+            if user_api_key:
+                logger.info(
+                    f"Using personal Gemini API key for user {owner_email}"
+                )
+                # Override environment and create user-specific client
+                os.environ["GOOGLE_API_KEY"] = user_api_key
+                os.environ["LLM_PROVIDER"] = "gemini"
+                llm: LLMClient = LLMClient.from_env()
+            else:
+                logger.info(
+                    f"Using default LLM client (no personal key for {owner_email})"
+                )
+                llm = llm_client  # use the global client from startup
+
             # ── Process the task ─────────────────────────────
             try:
-                _process_task(task=task, llm_client=llm_client, config=config)
+                _process_task(task=task, llm_client=llm, config=config)
             except Exception as exc:
                 logger.error(
                     "Unhandled error processing task: %s",
