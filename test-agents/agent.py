@@ -485,12 +485,19 @@ def main() -> None:
     logger.info(f"Orchestrator: {config['orchestrator_url']}")
     logger.info(f"LLM provider: {os.getenv('LLM_PROVIDER', 'stub')}")
 
+    # Start HTTP health server for Render Web Service free tier
+    from health_server import start_in_background, agent_status
+    start_in_background()
+    logger.info("Health server started on port " + os.getenv("PORT", "8002"))
+
     # ── Connect to Redis ─────────────────────────────────────
     try:
         redis_client: Any = _connect_redis(
             host=config["redis_host"],
             port=config["redis_port"],
         )
+        agent_status["redis_connected"] = True
+        agent_status["status"] = "listening"
     except ConnectionError as exc:
         logger.error("Failed to connect to Redis: %s", exc)
         sys.exit(1)
@@ -499,6 +506,7 @@ def main() -> None:
     try:
         llm_client: LLMClient = LLMClient.from_env()
         logger.info("LLM client ready (provider=%s)", llm_client.provider_name)
+        agent_status["provider"] = llm_client.provider_name
     except Exception as exc:
         logger.error("Failed to initialise LLM client: %s", exc)
         sys.exit(1)
@@ -571,6 +579,7 @@ def main() -> None:
             # ── Process the task ─────────────────────────────
             try:
                 _process_task(task=task, llm_client=llm, config=config)
+                agent_status["tasks_processed"] += 1
             except Exception as exc:
                 logger.error(
                     "Unhandled error processing task: %s",
