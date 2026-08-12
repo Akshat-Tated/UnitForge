@@ -16,19 +16,21 @@ export function SettingsPage() {
     setErrorMsg("");
     setSavedStatus(false);
 
-    if (!apiKey.trim()) {
+    const trimmedKey = apiKey.trim();
+
+    if (!trimmedKey) {
       setErrorMsg("Please enter an API key");
       toast.error("Please enter an API key");
       return;
     }
-    if (!apiKey.startsWith("AIza")) {
+    if (!trimmedKey.startsWith("AIza")) {
       setErrorMsg("Invalid Gemini API key — should start with AIza");
       toast.error("Invalid Gemini API key — should start with AIza");
       return;
     }
     setSaving(true);
     try {
-      await saveApiKey(apiKey.trim());
+      await saveApiKey(trimmedKey);
       setSuccessMsg("Gemini API key saved successfully.");
       toast.success("Gemini API key saved successfully.");
       setSavedStatus(true);
