@@ -503,13 +503,18 @@ def main() -> None:
         sys.exit(1)
 
     # ── Initialise LLM client ────────────────────────────────
+    llm_client: Optional[LLMClient] = None
     try:
-        llm_client: LLMClient = LLMClient.from_env()
-        logger.info("LLM client ready (provider=%s)", llm_client.provider_name)
+        llm_client = LLMClient.from_env()
+        logger.info("Global LLM client ready (provider=%s)", llm_client.provider_name)
         agent_status["provider"] = llm_client.provider_name
     except Exception as exc:
-        logger.error("Failed to initialise LLM client: %s", exc)
-        sys.exit(1)
+        logger.info(
+            "No global LLM client configured (%s). "
+            "Agent will rely on per-task BYOK keys.",
+            exc,
+        )
+        agent_status["provider"] = os.getenv("LLM_PROVIDER", "unknown")
 
     # ── Worker loop ──────────────────────────────────────────
     queue_key: str = config["redis_queue_key"]
@@ -546,35 +551,39 @@ def main() -> None:
                 logger.info(
                     f"Using personal Gemini API key for user {owner_email}"
                 )
-                # Override environment and create user-specific client
-                os.environ["GOOGLE_API_KEY"] = user_api_key
-                os.environ["LLM_PROVIDER"] = "gemini"
-                llm: LLMClient = LLMClient.from_env()
+                try:
+                    llm = LLMClient.from_env(api_key=user_api_key)
+                except Exception as exc:
+                    logger.error("Failed to initialize user LLM client: %s", exc)
+                    llm = None
             else:
-                if not os.getenv("GOOGLE_API_KEY"):
-                    logger.warning(
-                        f"No API key available for user {owner_email}. "
-                        "User must add their Gemini key in Settings."
+                if llm_client:
+                    logger.info(
+                        f"Using default LLM client (no personal key for {owner_email})"
                     )
-                    module_name: str = task.get("moduleName", "unknown")
-                    job_id: str = task.get("jobId", "unknown")
-                    report_result(job_id, {
-                        "moduleName": module_name,
-                        "passed": False,
-                        "coveragePercent": 0.0,
-                        "generatedTestCode": "",
-                        "agentLog": (
-                            "No Gemini API key configured. "
-                            "Please add your Gemini API key in Settings → "
-                            "https://aistudio.google.com to get a free key."
-                        ),
-                    }, config["orchestrator_url"])
-                    continue
-                
-                logger.info(
-                    f"Using default LLM client (no personal key for {owner_email})"
+                    llm = llm_client
+                else:
+                    llm = None
+
+            if not llm:
+                logger.warning(
+                    f"No API key available for user {owner_email}. "
+                    "User must add their Gemini key in Settings."
                 )
-                llm = llm_client  # use the global client from startup
+                module_name: str = task.get("moduleName", "unknown")
+                job_id: str = task.get("jobId", "unknown")
+                report_result(job_id, {
+                    "moduleName": module_name,
+                    "passed": False,
+                    "coveragePercent": 0.0,
+                    "generatedTestCode": "",
+                    "agentLog": (
+                        "No Gemini API key configured. "
+                        "Please add your Gemini API key in Settings → "
+                        "https://aistudio.google.com to get a free key."
+                    ),
+                }, config["orchestrator_url"])
+                continue
 
             # ── Process the task ─────────────────────────────
             try:

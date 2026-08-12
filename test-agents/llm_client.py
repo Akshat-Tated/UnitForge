@@ -22,6 +22,7 @@ import os
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -409,7 +410,7 @@ class LLMClient:
         self._provider = provider
 
     @classmethod
-    def from_env(cls) -> "LLMClient":
+    def from_env(cls, api_key: Optional[str] = None) -> "LLMClient":
         """
         Build an LLMClient from environment variables.
         Reads LLM_PROVIDER and the relevant keys automatically.
@@ -418,35 +419,35 @@ class LLMClient:
         llm_provider = os.getenv("LLM_PROVIDER", "stub").lower().strip()
 
         if llm_provider == "claude":
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if not api_key:
+            key = api_key or os.getenv("ANTHROPIC_API_KEY")
+            if not key:
                 raise EnvironmentError(
                     "LLM_PROVIDER=claude requires ANTHROPIC_API_KEY to be set.\n"
                     "Get your key at https://console.anthropic.com\n"
                     "Or switch to free usage: set LLM_PROVIDER=ollama in .env"
                 )
-            return cls(ClaudeProvider(api_key=api_key))
+            return cls(ClaudeProvider(api_key=key))
 
         if llm_provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
+            key = api_key or os.getenv("OPENAI_API_KEY")
             model = os.getenv("OPENAI_MODEL", OpenAIProvider.DEFAULT_MODEL)
-            if not api_key:
+            if not key:
                 raise EnvironmentError(
                     "LLM_PROVIDER=openai requires OPENAI_API_KEY to be set.\n"
                     "Or switch to free usage: set LLM_PROVIDER=ollama in .env"
                 )
-            return cls(OpenAIProvider(api_key=api_key, model=model))
+            return cls(OpenAIProvider(api_key=key, model=model))
 
         if llm_provider == "gemini":
-            api_key = os.getenv("GOOGLE_API_KEY")
-            if not api_key:
+            key = api_key or os.getenv("GOOGLE_API_KEY")
+            if not key:
                 raise EnvironmentError(
                     "LLM_PROVIDER=gemini but GOOGLE_API_KEY is not set.\n"
                     "Get a free key at https://aistudio.google.com\n"
                     "Then add GOOGLE_API_KEY=your-key to .env"
                 )
             model = os.getenv("GEMINI_MODEL", GeminiProvider.DEFAULT_MODEL)
-            return cls(GeminiProvider(api_key=api_key, model=model))
+            return cls(GeminiProvider(api_key=key, model=model))
 
         if llm_provider == "ollama":
             base_url = os.getenv("OLLAMA_BASE_URL", OllamaProvider.DEFAULT_BASE_URL)
