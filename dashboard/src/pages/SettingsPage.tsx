@@ -19,15 +19,11 @@ export function SettingsPage() {
     const trimmedKey = apiKey.trim();
 
     if (!trimmedKey) {
-      setErrorMsg("Please enter an API key");
-      toast.error("Please enter an API key");
+      setErrorMsg("Gemini API key is required.");
+      toast.error("Gemini API key is required.");
       return;
     }
-    if (!trimmedKey.startsWith("AIza")) {
-      setErrorMsg("Invalid Gemini API key — should start with AIza");
-      toast.error("Invalid Gemini API key — should start with AIza");
-      return;
-    }
+    
     setSaving(true);
     try {
       await saveApiKey(trimmedKey);
@@ -42,12 +38,13 @@ export function SettingsPage() {
     } catch (err: any) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         setErrorMsg("Your session has expired. Please log in again.");
-      } else if (err.response?.status === 400 && err.response?.data?.message) {
-        setErrorMsg(err.response.data.message);
+      } else if (err.response?.status >= 400 && err.response?.status < 500) {
+        setErrorMsg("Unable to save Gemini API key. Please check the key and try again.");
+        toast.error("Unable to save Gemini API key. Please check the key and try again.");
       } else {
-        setErrorMsg("Unable to save your Gemini API key. Please try again.");
+        setErrorMsg("Unable to save Gemini API key. Please try again.");
+        toast.error("Unable to save Gemini API key. Please try again.");
       }
-      toast.error("Failed to save Gemini API key. Please try again.");
     } finally {
       setSaving(false);
     }
