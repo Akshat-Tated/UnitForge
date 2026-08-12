@@ -6,24 +6,46 @@ import { saveApiKey } from "../api/client";
 export function SettingsPage() {
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [savedStatus, setSavedStatus] = useState(false);
   const navigate = useNavigate();
 
   const handleSave = async () => {
+    setSuccessMsg("");
+    setErrorMsg("");
+    setSavedStatus(false);
+
     if (!apiKey.trim()) {
+      setErrorMsg("Please enter an API key");
       toast.error("Please enter an API key");
       return;
     }
     if (!apiKey.startsWith("AIza")) {
+      setErrorMsg("Invalid Gemini API key — should start with AIza");
       toast.error("Invalid Gemini API key — should start with AIza");
       return;
     }
     setSaving(true);
     try {
       await saveApiKey(apiKey.trim());
-      toast.success("API key saved securely");
+      setSuccessMsg("Gemini API key saved successfully.");
+      toast.success("Gemini API key saved successfully.");
+      setSavedStatus(true);
       setApiKey("");
-    } catch {
-      toast.error("Failed to save API key");
+
+      setTimeout(() => {
+        setSavedStatus(false);
+      }, 2000);
+    } catch (err: any) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setErrorMsg("Your session has expired. Please log in again.");
+      } else if (err.response?.status === 400 && err.response?.data?.message) {
+        setErrorMsg(err.response.data.message);
+      } else {
+        setErrorMsg("Unable to save your Gemini API key. Please try again.");
+      }
+      toast.error("Failed to save Gemini API key. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -68,7 +90,12 @@ export function SettingsPage() {
           <input
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              setSuccessMsg("");
+              setErrorMsg("");
+              setSavedStatus(false);
+            }}
             placeholder="Paste your Gemini API key..."
             className="flex-1 px-4 py-3 bg-gray-800 border border-gray-600
                        rounded-lg text-white placeholder-gray-500
@@ -79,11 +106,23 @@ export function SettingsPage() {
             disabled={saving}
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700
                        rounded-lg text-white font-medium transition-colors
-                       disabled:opacity-50"
+                       disabled:opacity-50 min-w-[120px]"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : savedStatus ? "Saved ✓" : "Save"}
           </button>
         </div>
+
+        {successMsg && (
+          <p className="text-sm text-emerald-400 mt-2 flex items-center gap-1">
+            ✓ {successMsg}
+          </p>
+        )}
+        {errorMsg && (
+          <p className="text-sm text-rose-400 mt-2 flex items-center gap-1">
+            ✕ {errorMsg}
+          </p>
+        )}
+
         <p className="text-xs text-gray-500 mt-3">
           Your key is encrypted before storage. UnitForge only uses it
           for your test generation requests.

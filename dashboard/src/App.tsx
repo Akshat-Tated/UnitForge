@@ -4,11 +4,13 @@ import { JobDetail } from './pages/JobDetail';
 import { LoginPage } from './pages/LoginPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-slate-900 text-slate-100 selection:bg-indigo-500/30">
+        <Toaster />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

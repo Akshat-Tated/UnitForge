@@ -5,7 +5,7 @@ import { Activity, Calendar, GitBranch, FileCode2, ChevronRight, Loader2, AlertC
 import { useNavigate } from 'react-router-dom';
 import { fetchAllJobs } from '../api/client';
 import { useWebSocket } from '../hooks/useWebSocket';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import { SubmitJobModal } from "../components/SubmitJobModal";
 
@@ -73,7 +73,6 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <Toaster />
       <header className="mb-12 flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-extrabold text-white tracking-tight flex items-center gap-3">
