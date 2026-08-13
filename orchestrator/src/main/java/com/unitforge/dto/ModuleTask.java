@@ -47,4 +47,6 @@ public class ModuleTask {
     @NonNull
     @ToString.Exclude
     private String moduleInfoJson;
+
+    private String ownerEmail;
 }

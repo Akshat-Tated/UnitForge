@@ -40,7 +40,7 @@ public class TaskQueueService {
      * @param moduleMap the full module map from the analysis engine
      * @return the number of tasks pushed
      */
-    public int pushModuleTasks(UUID jobId, JsonNode moduleMap) {
+    public int pushModuleTasks(UUID jobId, JsonNode moduleMap, String ownerEmail) {
         JsonNode modules = moduleMap.get("modules");
         if (modules == null || !modules.isArray()) {
             log.warn("No 'modules' array found in moduleMap for job {}", jobId);
@@ -57,6 +57,7 @@ public class TaskQueueService {
                     .moduleName(moduleName)
                     .moduleType(moduleType)
                     .moduleInfoJson(module.toString())
+                    .ownerEmail(ownerEmail)
                     .build();
 
             try {

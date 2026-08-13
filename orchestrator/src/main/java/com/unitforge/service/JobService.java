@@ -49,8 +49,10 @@ public class JobService {
         if (moduleMap != null && moduleMap.has("modules")) {
             int moduleCount = moduleMap.get("modules").size();
             savedJob.setTotalModules(moduleCount);
+            testJobRepository.flush(); // Force immediate DB write before Redis push
 
-            int taskCount = taskQueueService.pushModuleTasks(savedJob.getId(), moduleMap);
+            int taskCount = taskQueueService.pushModuleTasks(
+                    savedJob.getId(), moduleMap, savedJob.getOwnerEmail());
             if (taskCount > 0) {
                 savedJob.setStatus(JobStatus.RUNNING);
                 log.info("Job {} transitioned to RUNNING with {} task(s), totalModules={}",
