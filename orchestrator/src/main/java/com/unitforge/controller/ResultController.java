@@ -3,12 +3,14 @@ package com.unitforge.controller;
 import com.unitforge.dto.AgentResultRequest;
 import com.unitforge.dto.TestResultResponse;
 import com.unitforge.model.JobStatus;
-import com.unitforge.model.TestJob;
 import com.unitforge.model.TestResult;
+import com.unitforge.repository.TestJobRepository;
+import com.unitforge.repository.TestResultRepository;
 import com.unitforge.service.JobService;
 import com.unitforge.service.WebSocketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -20,8 +22,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("${unitforge.api.base-path}/jobs")
 @CrossOrigin(origins = "*")
@@ -30,6 +34,8 @@ public class ResultController {
 
     private final JobService jobService;
     private final WebSocketService webSocketService;
+    private final TestJobRepository testJobRepository;
+    private final TestResultRepository testResultRepository;
 
     @GetMapping("/{id}/results")
     public ResponseEntity<List<TestResultResponse>> getResults(@PathVariable UUID id) {
@@ -52,10 +58,21 @@ public class ResultController {
     }
 
     @PostMapping("/{id}/results")
-    public ResponseEntity<TestResultResponse> submitResult(
+    public ResponseEntity<?> submitResult(
             @PathVariable UUID id,
             @Valid @RequestBody AgentResultRequest request) {
 
+        // Check job exists first — return 200 OK even if not found
+        // Agent must never crash from this endpoint
+        if (!testJobRepository.existsById(id)) {
+            log.warn("Result posted for unknown job ID: {} — module: {}",
+                    id, request.getModuleName());
+            return ResponseEntity.ok(
+                Map.of("message", "Job not found but result acknowledged")
+            );
+        }
+
+        // Normal flow — save result
         TestResult saved = jobService.submitResult(
                 id,
                 request.getModuleName(),
@@ -72,10 +89,12 @@ public class ResultController {
         webSocketService.broadcastResultUpdate(saved);
 
         // Check if job transitioned to DONE and broadcast if so
-        TestJob job = jobService.getJob(id);
-        if (job.getStatus() == JobStatus.DONE) {
-            webSocketService.broadcastJobUpdate(job);
-        }
+        testJobRepository.findById(id).ifPresent(job -> {
+            if (job.getStatus() == JobStatus.DONE) {
+                webSocketService.broadcastJobUpdate(job);
+                log.info("Job {} is now DONE", id);
+            }
+        });
 
         TestResultResponse response = TestResultResponse.builder()
                 .id(saved.getId())
@@ -91,3 +110,4 @@ public class ResultController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
+
