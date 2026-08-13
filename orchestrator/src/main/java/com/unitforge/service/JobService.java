@@ -37,14 +37,18 @@ public class JobService {
      * @return the persisted job
      */
     @Transactional
-    public TestJob createJob(String inputType, String inputPath, JsonNode moduleMap) {
+    public TestJob createJob(String inputType, String inputPath, JsonNode moduleMap, String ownerEmail) {
         TestJob job = TestJob.builder()
                 .status(JobStatus.QUEUED)
                 .inputType(inputType)
                 .inputPath(inputPath)
+                .ownerEmail(ownerEmail)
                 .build();
 
+
+
         TestJob savedJob = testJobRepository.save(job);
+        log.info("Creating job {} for owner {}", savedJob.getId(), ownerEmail);
 
         if (moduleMap != null && moduleMap.has("modules")) {
             int moduleCount = moduleMap.get("modules").size();

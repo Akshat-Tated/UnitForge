@@ -64,7 +64,7 @@ public class TaskQueueService {
                 String taskJson = objectMapper.writeValueAsString(task);
                 redisTemplate.opsForList().rightPush(taskQueueKey, taskJson);
                 count++;
-                log.debug("Pushed task for module '{}' (job {})", moduleName, jobId);
+                log.info("Queueing module {} for job {} owner {}", moduleName, jobId, ownerEmail);
             } catch (JsonProcessingException e) {
                 log.error("Failed to serialize task for module '{}' (job {}): {}",
                         moduleName, jobId, e.getMessage());

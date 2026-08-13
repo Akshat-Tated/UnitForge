@@ -62,11 +62,10 @@ public class JobController {
             @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false)
             String authHeader) {
         
-        String ownerEmail = jwtService.extractEmailFromHeader(authHeader).orElse("anonymous");
+        String ownerEmail = jwtService.extractEmailFromHeader(authHeader)
+                .orElseThrow(() -> new RuntimeException("Unauthorized: missing or invalid JWT"));
 
-        TestJob job = jobService.createJob(request.getInputType(), request.getInputPath(), request.getModuleMap());
-        job.setOwnerEmail(ownerEmail);
-        testJobRepository.save(job);
+        TestJob job = jobService.createJob(request.getInputType(), request.getInputPath(), request.getModuleMap(), ownerEmail);
         
         webSocketService.broadcastJobUpdate(job);
 
