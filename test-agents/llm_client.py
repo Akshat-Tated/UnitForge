@@ -173,10 +173,10 @@ class GeminiProvider(BaseLLMProvider):
     Recommended models:
         gemini-1.5-flash   → free, fast, good quality (recommended)
         gemini-1.5-pro     → paid, better quality
-        gemini-2.0-flash   → free, latest, best free option
+        gemini-1.5-flash   → free, latest, best free option
     """
 
-    DEFAULT_MODEL = "gemini-2.0-flash"
+    DEFAULT_MODEL = "gemini-1.5-flash"
 
     def __init__(self, api_key: str, model: str = DEFAULT_MODEL) -> None:
         """
