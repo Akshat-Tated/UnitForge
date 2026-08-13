@@ -207,31 +207,45 @@ def _report_result(
 
 def report_result(
     job_id: str,
-    payload: dict[str, Any],
-    orchestrator_url: str,
+    payload: dict,
+    orchestrator_url: str
 ) -> None:
-    """POST result to orchestrator."""
+    """POST result to orchestrator. Never raises — agent must not crash."""
     url = f"{orchestrator_url}/api/jobs/{job_id}/results"
-
-    headers: dict[str, str] = {"Content-Type": "application/json"}
-
-    # Optional: send agent token if configured
-    # This allows the orchestrator to identify the agent
-    agent_token: str = os.getenv("AGENT_TOKEN", "")
+    
+    headers = {"Content-Type": "application/json"}
+    agent_token = os.getenv("AGENT_TOKEN", "")
     if agent_token:
         headers["Authorization"] = f"Bearer {agent_token}"
-
-    response = requests.post(
-        url,
-        json=payload,
-        headers=headers,
-        timeout=30,
-    )
-    response.raise_for_status()
-    logger.info(
-        f"Reported result for module '{payload['moduleName']}' "
-        f"to {url} (status={response.status_code})"
-    )
+    
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=30,
+        )
+        # Log but don't raise — agent must survive any server error
+        if response.status_code >= 400:
+            logger.warning(
+                f"Orchestrator returned {response.status_code} "
+                f"for result POST to {url}: {response.text[:200]}"
+            )
+        else:
+            logger.info(
+                f"Reported result for '{payload.get('moduleName')}' "
+                f"(status={response.status_code})"
+            )
+    except requests.exceptions.ConnectionError:
+        logger.error(
+            f"Cannot reach orchestrator at {url}. "
+            "Result lost — check ORCHESTRATOR_URL env var."
+        )
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout posting result to {url}")
+    except Exception as e:
+        logger.error(f"Unexpected error posting result: {e}")
+    # Never re-raise — the agent loop must continue
 
 
 # ─────────────────────────────────────────────────────────────
@@ -520,8 +534,8 @@ def main() -> None:
     queue_key: str = config["redis_queue_key"]
     logger.info("Listening for tasks on Redis queue '%s'...", queue_key)
 
-    try:
-        while True:
+    while True:
+        try:
             # BLPOP with timeout — returns (key, value) or None
             result: Optional[tuple[str, str]] = redis_client.blpop(
                 queue_key,
@@ -542,28 +556,30 @@ def main() -> None:
                 continue
 
             # ── BYOK: use owner's personal API key if available ──
-            owner_email: str = task.get("ownerEmail", "anonymous")
-            user_api_key: Optional[str] = get_user_api_key(
-                owner_email, config["orchestrator_url"]
-            )
-
-            if user_api_key:
-                logger.info(
-                    f"Using personal Gemini API key for user {owner_email}"
+            owner_email = task.get("ownerEmail", "") or ""
+            
+            # Only try to get user key if we have a real email
+            # Skip "anonymous" and empty strings
+            if owner_email and owner_email != "anonymous":
+                user_api_key: Optional[str] = get_user_api_key(
+                    owner_email, config["orchestrator_url"]
                 )
-                try:
-                    llm = LLMClient.from_env(api_key=user_api_key)
-                except Exception as exc:
-                    logger.error("Failed to initialize user LLM client: %s", exc)
-                    llm = None
-            else:
-                if llm_client:
+                if user_api_key:
+                    logger.info(f"Using personal API key for {owner_email}")
+                    try:
+                        llm = LLMClient.from_env(api_key=user_api_key)
+                    except Exception as exc:
+                        logger.error("Failed to initialize user LLM client: %s", exc)
+                        llm = None
+                else:
                     logger.info(
-                        f"Using default LLM client (no personal key for {owner_email})"
+                        f"No personal key for {owner_email} "
+                        "— using default LLM client"
                     )
                     llm = llm_client
-                else:
-                    llm = None
+            else:
+                logger.info("Anonymous job — using default LLM client")
+                llm = llm_client
 
             if not llm:
                 logger.warning(
@@ -591,16 +607,32 @@ def main() -> None:
                 agent_status["tasks_processed"] += 1
             except Exception as exc:
                 logger.error(
-                    "Unhandled error processing task: %s",
-                    exc,
-                    exc_info=True,
+                    f"Unhandled error processing task "
+                    f"{task.get('moduleName', 'unknown')}: {exc}",
+                    exc_info=True
                 )
-                # Agent must never crash — log and continue
-                continue
+                # Try to report failure so job does not stall
+                try:
+                    report_result(
+                        task.get("jobId", "unknown"),
+                        {
+                            "moduleName": task.get("moduleName", "unknown"),
+                            "passed": False,
+                            "coveragePercent": 0.0,
+                            "generatedTestCode": "",
+                            "agentLog": f"Agent error: {str(exc)[:500]}",
+                        },
+                        config["orchestrator_url"],
+                    )
+                except Exception:
+                    pass  # Already safe — report_result never raises
 
-    except KeyboardInterrupt:
-        logger.info("Received Ctrl+C — shutting down gracefully.")
-        sys.exit(0)
+        except KeyboardInterrupt:
+            logger.info("Agent shutting down")
+            break
+        except Exception as e:
+            logger.error(f"Outer loop error: {e} — continuing")
+            continue  # Never stop — always keep polling
 
 
 # ─────────────────────────────────────────────────────────────
