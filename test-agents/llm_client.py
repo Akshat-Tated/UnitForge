@@ -164,10 +164,10 @@ class GeminiProvider(BaseLLMProvider):
     Uses stable v1 API — supports all current Gemini models.
 
     Free tier: https://aistudio.google.com
-    Default model: gemini-2.0-flash (free, fast, good quality)
+    Default model: gemini-3.6-flash (free, fast, good quality)
     """
 
-    DEFAULT_MODEL = "gemini-1.5-flash"
+    DEFAULT_MODEL = "gemini-3.6-flash"
 
     def __init__(self, api_key: str, model: str = DEFAULT_MODEL) -> None:
         """
