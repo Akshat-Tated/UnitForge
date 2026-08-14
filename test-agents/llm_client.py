@@ -160,49 +160,36 @@ class OpenAIProvider(BaseLLMProvider):
 
 class GeminiProvider(BaseLLMProvider):
     """
-    Calls the Google Gemini API.
-    Gemini 1.5 Flash is completely FREE with generous rate limits.
-    No credit card needed.
+    Calls the Google Gemini API using the new google-genai SDK.
+    Uses stable v1 API — supports all current Gemini models.
 
-    Setup:
-        1. Go to https://aistudio.google.com
-        2. Click Get API Key → Create API Key
-        3. Set GOOGLE_API_KEY in .env
-        4. Set LLM_PROVIDER=gemini in .env
-
-    Recommended models:
-        gemini-1.5-flash   → free, fast, good quality (recommended)
-        gemini-1.5-pro     → paid, better quality
-        gemini-2.5-flash   → free, latest, best free option
+    Free tier: https://aistudio.google.com
+    Default model: gemini-2.0-flash (free, fast, good quality)
     """
 
-    DEFAULT_MODEL = "gemini-2.5-flash"
+    DEFAULT_MODEL = "gemini-2.0-flash"
 
     def __init__(self, api_key: str, model: str = DEFAULT_MODEL) -> None:
         """
         Initialise the Gemini provider.
 
         Args:
-            api_key: Your Google AI Studio API key
-            model: The Gemini model to use
+            api_key: Google AI Studio API key
+            model: Gemini model name (default: gemini-2.0-flash)
         """
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
             self._genai = genai
+            self._types = types
         except ImportError:
             raise ImportError(
-                "google-generativeai package not installed.\n"
-                "Run: pip install google-generativeai"
+                "google-genai package not installed.\n"
+                "Run: pip install google-genai"
             )
-        self._genai.configure(api_key=api_key)
+
+        self._client = self._genai.Client(api_key=api_key)
         self._model_name = model
-        self._model = self._genai.GenerativeModel(
-            model_name=model,
-            generation_config={
-                "temperature": 0.2,      # lower = more consistent code
-                "max_output_tokens": 8192,
-            }
-        )
         logger.info(f"GeminiProvider ready — model={self._model_name}")
 
     def generate(self, prompt: str, system: str = "") -> LLMResponse:
@@ -211,12 +198,12 @@ class GeminiProvider(BaseLLMProvider):
 
         Args:
             prompt: The test generation request
-            system: System prompt (prepended to the user prompt)
+            system: System prompt (prepended to user prompt)
 
         Returns:
             LLMResponse with generated test code
         """
-        # Gemini combines system and user prompt into one
+        # Combine system and user prompt
         full_prompt = f"{system}\n\n{prompt}" if system else prompt
 
         logger.debug(
@@ -224,49 +211,50 @@ class GeminiProvider(BaseLLMProvider):
             f"prompt_len={len(full_prompt)}"
         )
 
-        response = self._model.generate_content(full_prompt)
+        response = self._client.models.generate_content(
+            model=self._model_name,
+            contents=full_prompt,
+            config=self._types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=8192,
+            ),
+        )
 
         # Extract text safely
         try:
-            content = response.text
-
-            # Detect truncated output — last non-empty line should end with
-            # a complete statement, not mid-definition
-            lines = [l for l in content.strip().split("\n") if l.strip()]
-            if lines:
-                last_line = lines[-1].strip()
-                # If last line looks like an incomplete function/class definition
-                # (no colon at end, starts with def/class), the output was truncated
-                if (last_line.startswith("def ") or last_line.startswith("class ")) \
-                        and not last_line.endswith(":"):
-                    logger.warning(
-                        "Gemini output appears truncated — last line: "
-                        f"'{last_line[:80]}'"
-                    )
-                    # Trim to the last complete function by finding the last
-                    # complete def block
-                    complete_lines = []
-                    for i, line in enumerate(content.split("\n")):
-                        stripped = line.strip()
-                        if (stripped.startswith("def ") or
-                                stripped.startswith("class ")) \
-                                and not stripped.endswith(":") \
-                                and i == len(content.split("\n")) - 1:
-                            break
-                        complete_lines.append(line)
-                    content = "\n".join(complete_lines)
-                    logger.info("Trimmed truncated output to last complete function")
+            content = response.text or ""
         except Exception:
             content = ""
-            logger.warning("Gemini returned empty response")
+            logger.warning("Gemini returned empty or blocked response")
 
-        # Gemini does not expose token counts in the same way
-        # Use character count as approximation
+        # Detect truncated output
+        lines = [l for l in content.strip().split("\n") if l.strip()]
+        if lines:
+            last_line = lines[-1].strip()
+            if (
+                (last_line.startswith("def ") or last_line.startswith("class "))
+                and not last_line.endswith(":")
+            ):
+                logger.warning(
+                    f"Gemini output appears truncated — last line: '{last_line[:80]}'"
+                )
+                complete_lines = []
+                for i, line in enumerate(content.split("\n")):
+                    stripped = line.strip()
+                    if (
+                        (stripped.startswith("def ") or stripped.startswith("class "))
+                        and not stripped.endswith(":")
+                        and i == len(content.split("\n")) - 1
+                    ):
+                        break
+                    complete_lines.append(line)
+                content = "\n".join(complete_lines)
+
         return LLMResponse(
             content=content,
             provider="gemini",
             model=self._model_name,
-            input_tokens=len(full_prompt) // 4,    # rough estimate
+            input_tokens=len(full_prompt) // 4,
             output_tokens=len(content) // 4,
         )
 
