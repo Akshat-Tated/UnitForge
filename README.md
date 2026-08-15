@@ -1,247 +1,276 @@
+---
 <div align="center">
 
-<img src="https://img.shields.io/badge/⚙-UnitForge-cyan?style=for-the-badge" alt="UnitForge"/>
-
-# UnitForge
+# ⚙️ UnitForge
 
 **Open-source AI-powered unit test generation engine**
 
-Feed it a codebase. Get production-ready tests back. No manual effort.
+Feed it a GitHub URL. Get production-ready tests back. No installation. No setup. Works from any browser.
 
-[![Status](https://img.shields.io/badge/status-phase%205%20complete-brightgreen)](https://github.com/Akshat-Tated/UnitForge)
+[![Status](https://img.shields.io/badge/status-live-brightgreen)](https://unit-forge.vercel.app)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
 [![Java](https://img.shields.io/badge/java-21-red)](https://adoptium.net)
-[![Spring Boot](https://img.shields.io/badge/spring%20boot-3.3-brightgreen)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/spring%20boot-3.3-brightgreen)](https://spring.io)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](./CONTRIBUTING.md)
 
-[Getting Started](#-quick-start) •
-[Architecture](#-architecture) •
-[Features](#-features) •
-[Contributing](#-contributing) •
-[Roadmap](#-roadmap)
+**[Try it live →](https://unit-forge.vercel.app)** | [Architecture](#-architecture) | [Self-host](#-self-hosting) | [Contributing](./CONTRIBUTING.md)
 
 </div>
 
 ---
 
-## The problem
+## What is UnitForge?
+
+UnitForge is an open-source AI-powered unit test generation engine. You give it a GitHub repository URL. It analyzes your Python code, spins up parallel AI agents — one per module — and generates production-quality pytest tests automatically.
+
+No installation. No CLI. No API key required to try. Works on desktop, tablet, and mobile.
+
+> 🆓 **BYOK model:** UnitForge uses *your* Gemini API key — 
+> your quota, your data relationship with Google.
+> Get a free key at [aistudio.google.com](https://aistudio.google.com).
+
+---
+
+## Try it now — 3 steps
+
+1. Go to **[unit-forge.vercel.app](https://unit-forge.vercel.app)**
+2. Register → Settings → paste your free Gemini API key
+3. Click **+ Generate Tests** → paste any public Python GitHub URL
+
+That is it. No downloads. No terminal.
+
+---
+
+## The problem it solves
 
 Writing unit tests is the most skipped part of software development.
 When developers do write them, coverage is patchy, edge cases are missed,
 and tests go stale as the codebase evolves.
 
-Enterprise tools like Diffblue Cover solve this — but at **$30,000/year**,
+Enterprise tools like Diffblue Cover solve this — at **$30,000/year**,
 Java-only, and completely closed-source.
 
-**UnitForge is the open-source answer.**
-
-> 🆓 **Free usage:** UnitForge works with [Ollama](https://ollama.com) locally —
-> no API key, no cost, no data leaves your machine.
-> `ollama pull qwen2.5-coder:14b`
+**UnitForge is the open-source, free, Python-supporting alternative.**
 
 ---
 
-## What it does
+## Architecture
 
-Point UnitForge at a Python or Java codebase (or an OpenAPI spec).
-It spins up parallel AI agents — one per module — each generating unit tests,
-integration tests, and edge cases. Failed tests feed back into the system
-to generate smarter tests on the next run.
-
-```bash
-# Analyze a local project
-python main.py --input ./my-project --type python
-
-# The pipeline handles everything else automatically
 ```
-
----
-
-## ✨ Features
-
-### Phase 1 — Foundation
-- ✅ Python AST parser — extracts functions, classes, and docstrings
-- ✅ OpenAPI spec parser — generates tests from YAML/JSON API specs
-- ✅ Spring Boot REST API — job management with PostgreSQL storage
-- ✅ Redis task queue — distributes work across parallel agents
-- ✅ React dashboard — live job monitoring with status badges
-- ✅ Docker Compose — one-command infrastructure setup
-
-### Phase 2 — AI Pipeline
-- ✅ Pluggable LLM client — Claude, OpenAI, Ollama, or Stub (free dev mode)
-- ✅ Redis worker agents — poll queue, call LLM, report results
-- ✅ Prompt builder — specialized prompts with full AST context
-- ✅ Feedback loop — failed tests retry with error context automatically
-- ✅ Full pipeline — analysis engine → orchestrator → agents → results
-
-### Phase 3 — Real Coverage
-- ✅ pytest-cov integration — real coverage percentages, not placeholders
-- ✅ Job DONE status — orchestrator tracks completion across all modules
-- ✅ Dashboard live data — replaces mock data with real API calls
-- ✅ Auto-refresh — dashboard polls every 10 seconds during active jobs
-- ✅ Markdown fence stripping — handles LLM output formatting automatically
-
-### Phase 4 — Real-time & Downloads
-- ✅ WebSocket updates — dashboard refreshes instantly via STOMP/SockJS
-- ✅ Toast notifications — popup when job status changes to DONE
-- ✅ Download tests — exports all generated test files as a `.zip`
-- ✅ Coverage visualization — animated progress bars (green/yellow/red)
-- ✅ View generated tests — expandable code view per module
-
----
-
-## 🏗 Architecture
+User (any browser, any device)
+            ↓
+unit-forge.vercel.app — React dashboard
+            ↓
+unitforge-api.onrender.com — Spring Boot orchestrator
+            ↓
+unitforge-analysis.onrender.com — Python analysis engine (FastAPI)
+            ↓
+Upstash Redis — task queue
+            ↓
+unitforge-agent.onrender.com — Python test agent (24/7 cloud worker)
+            ↓
+Gemini API (user's own key) — AI test generation
+            ↓
+Supabase PostgreSQL — results storage
+            ↓
+Dashboard updates in real time via WebSocket
+```
 
 ```
 ┌─────────────────────────────────────────┐
-│              INPUT                       │
-│   Local folder · OpenAPI spec           │
+│              INPUT (from browser UI)    │
+│   GitHub URL · OpenAPI spec URL         │
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│         ANALYSIS ENGINE (Python)         │
-│   AST parser · OpenAPI parser           │
-│   → module_map.json                     │
+│         ANALYSIS ENGINE (Python/FastAPI)│
+│   Clones repo · AST parser · OpenAPI    │
+│   → module_map JSON                     │
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│        ORCHESTRATOR (Spring Boot)        │
-│   REST API · Redis queue · WebSocket    │
+│        ORCHESTRATOR (Spring Boot)       │
+│   JWT auth · Redis queue · WebSocket    │
+│   Per-user job isolation · PostgreSQL   │
 └──────┬──────────┬──────────┬────────────┘
        │          │          │
 ┌──────▼──┐  ┌───▼─────┐  ┌─▼───────┐
-│  Agent  │  │  Agent  │  │  Agent  │  ← parallel, one per module
-│ Module A│  │ Module B│  │ Module C│
-│   LLM   │  │   LLM   │  │   LLM   │
+│  Agent  │  │  Agent  │  │  Agent  │
+│  Cloud  │  │  Cloud  │  │  Cloud  │  ← parallel, one per module
+│  Gemini │  │  Gemini │  │  Gemini │
 └──────┬──┘  └───┬─────┘  └─┬───────┘
        └─────────┴───────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│           RESULTS & DASHBOARD            │
+│           RESULTS & DASHBOARD           │
 │   PostgreSQL · Coverage bars · React    │
-│   WebSocket live updates · ZIP download │
+│   WebSocket live updates · ZIP export   │
 └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 🛠 Tech stack
+## Features
 
-| Layer | Technology |
-|---|---|
-| Analysis engine | Python 3.12, `ast` module, PyYAML |
-| Orchestrator | Spring Boot 3.3, Java 21, Maven |
-| Task queue | Redis 7 |
-| Test agents | Python, Anthropic SDK / Ollama / OpenAI |
-| Database | PostgreSQL 16 |
-| Dashboard | React 18, Vite, TypeScript, Tailwind CSS |
-| Real-time | WebSocket (STOMP + SockJS) |
-| Infrastructure | Docker, Docker Compose, nginx |
+### Core
+- ✅ Python AST parsing — extracts all functions, classes, docstrings
+- ✅ OpenAPI spec parsing — generates endpoint tests from YAML/JSON
+- ✅ Parallel AI agents — one per module, all running simultaneously
+- ✅ Real coverage measurement — `pytest --cov` with actual percentages
+- ✅ Feedback loop — failed tests auto-retry with error context
+- ✅ Empty module detection — skips untestable files intelligently
+
+### Platform
+- ✅ JWT authentication with per-user job isolation
+- ✅ BYOK model — users bring their own Gemini API key (encrypted AES-256)
+- ✅ WebSocket live updates — dashboard updates without page refresh
+- ✅ Download generated tests — ZIP export directly from browser
+- ✅ Rerun failed modules — one click to retry with running agent
+- ✅ Works on mobile — no installation required
+
+### Developer tools
+- ✅ CLI tool — `unitforge generate ./my-project --download`
+- ✅ GitHub URL support — clone and analyze any public repo
+- ✅ Multiple LLM providers — Gemini (free), Claude, OpenAI, Ollama, Stub
 
 ---
 
-## Quick start
+## UnitForge vs Diffblue Cover
 
-### Option A — One command (CLI)
-```bash
-pip install -e ./unitforge-cli
-unitforge generate ./my-project
-```
+| | Diffblue Cover | UnitForge |
+|---|---|---|
+| Price | ~$30,000/year | Free |
+| Source | Closed source | Open source (MIT) |
+| Languages | Java only | Python + Java |
+| Architecture | Single-threaded RL | Multi-agent parallel |
+| LLM | Proprietary | Gemini / Claude / Ollama |
+| Works offline | No | Yes (self-hosted + Ollama) |
+| Mobile friendly | No | Yes |
+| Self-hostable | No | Yes |
+| Feedback loop | No | Yes |
+| Real-time dashboard | No | Yes |
 
-### Option B — Full stack
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Analysis engine | Python 3.12, `ast`, PyYAML, GitPython, FastAPI |
+| Orchestrator | Spring Boot 3.3, Java 21, Maven |
+| Test agents | Python, google-genai SDK |
+| Task queue | Redis (Upstash, SSL) |
+| Database | PostgreSQL 16 (Supabase) |
+| Dashboard | React 18, Vite, TypeScript, Tailwind CSS |
+| Real-time | WebSocket (STOMP + SockJS) |
+| Auth | JWT (RS256), BCrypt password hashing, AES-256 key encryption |
+| Infrastructure | Docker, Docker Compose, Render, Vercel |
+
+---
+
+## Self-hosting
+
+Want to run UnitForge on your own infrastructure?
+See [docs/getting-started.md](./docs/getting-started.md) for the complete guide.
+
+Quick start:
 ```bash
-cp .env.example .env
+git clone https://github.com/Akshat-Tated/UnitForge.git
+cd UnitForge
+cp .env.example .env   # Edit .env with your credentials
+
 docker-compose up postgres redis -d
 cd orchestrator && mvn spring-boot:run   # terminal 1
 cd test-agents && python agent.py        # terminal 2
 cd dashboard && npm run dev              # terminal 3
 ```
 
----
-
-## 📊 UnitForge vs Diffblue Cover
-
-| | Diffblue Cover | UnitForge |
-|---|---|---|
-| Price | ~$30,000/year | Free (self-hosted) |
-| Source | Closed, proprietary | Open source (MIT) |
-| Languages | Java only | Python + Java |
-| Architecture | Single-threaded RL | Multi-agent parallel |
-| LLM provider | Proprietary | Claude / OpenAI / Ollama |
-| Works offline | No | Yes (with Ollama) |
-| Self-hostable | No | Yes |
-| Feedback loop | No | Yes (auto-retry on failure) |
-| Real-time dashboard | No | Yes (WebSocket) |
-| Download tests | No | Yes (.zip export) |
+CLI usage:
+```bash
+cd unitforge-cli
+pip install -e .
+unitforge generate https://github.com/user/repo --download
+```
 
 ---
 
-## 📁 Repository structure
+## Repository structure
 
 ```
 UnitForge/
-├── analysis-engine/        # Python — parses code into module map
-│   ├── parsers/            # python_parser, openapi_parser, java_parser
-│   ├── models/             # ModuleMap, FunctionInfo, EndpointInfo dataclasses
-│   ├── tests/              # pytest tests + sample fixtures
-│   └── main.py             # CLI: python main.py --input PATH --type TYPE
+├── analysis-engine/        # Python FastAPI service — code analysis
+│   ├── server.py           # HTTP server (POST /analyze)
+│   ├── parsers/            # python_parser, openapi_parser
+│   ├── models/             # ModuleMap dataclasses
+│   └── github_cloner.py    # GitPython repo cloning
 │
 ├── orchestrator/           # Spring Boot — REST API + job management
 │   └── src/main/java/com/unitforge/
-│       ├── controller/     # JobController, ResultController, DownloadController
-│       ├── service/        # JobService, TaskQueueService, WebSocketService
-│       ├── model/          # TestJob, TestResult, JobStatus entities
-│       └── config/         # Redis, WebSocket configuration
+│       ├── controller/     # JobController, ResultController, AuthController
+│       ├── service/        # JobService, TaskQueueService, JwtService, EncryptionService
+│       └── model/          # TestJob, TestResult, User entities
 │
-├── test-agents/            # Python workers — LLM test generation
-│   ├── agent.py            # Redis worker: poll → generate → run → report
-│   ├── prompt_builder.py   # Builds specialized LLM prompts from module info
-│   ├── test_runner.py      # Runs generated tests via subprocess + coverage
-│   └── llm_client.py      # Pluggable: Claude / OpenAI / Ollama / Stub
+├── test-agents/            # Python cloud worker — AI test generation
+│   ├── agent.py            # Redis polling loop
+│   ├── llm_client.py       # Gemini / Claude / Ollama / Stub providers
+│   ├── prompt_builder.py   # LLM prompt construction
+│   ├── test_runner.py      # pytest execution + coverage
+│   └── health_server.py    # FastAPI health endpoint for Render
 │
-├── dashboard/              # React 18 + Vite + TypeScript + Tailwind
+├── dashboard/              # React 18 — browser UI
 │   └── src/
-│       ├── pages/          # Dashboard.tsx, JobDetail.tsx
-│       ├── components/     # AgentCard, StatusBadge, CoverageBar
-│       └── hooks/          # useWebSocket for real-time updates
+│       ├── pages/          # Dashboard, JobDetail, LoginPage, SettingsPage
+│       └── components/     # SubmitJobModal, AgentCard, CoverageBar, StatusBadge
 │
-├── docs/                   # Documentation
-│   └── getting-started.md
+├── unitforge-cli/          # Python CLI tool
+│   └── unitforge_cli/      # generate, status, download commands
 │
-├── ARCHITECTURE.md         # Full project specification (source of truth)
-├── docker-compose.yml      # Infrastructure: postgres + redis + services
+├── docs/
+│   ├── getting-started.md  # Self-hosting setup guide
+│   └── deployment.md       # Production deployment guide
+│
+├── ARCHITECTURE.md         # Full project specification
+├── docker-compose.yml      # Local infrastructure
+├── render.yaml             # Render.com deployment config
 └── .env.example            # Environment variable template
 ```
 
 ---
 
-## 🗺 Roadmap
+## Roadmap
 
-- [x] Phase 1 — Analysis engine, Spring Boot, React dashboard ✅
-- [x] Phase 2 — LLM integration, Redis worker, test agents ✅
-- [x] Phase 3 — Real coverage, feedback loop, DONE status ✅
-- [x] Phase 4 — WebSocket live updates, download, coverage bars ✅
-- [x] Phase 5 — CLI tool, GitHub URL, JWT auth, GitHub Actions ✅
-- [x] **Phase 6** — Cloud version, managed hosting, team features
+- [x] **Phase 1** — Analysis engine, Spring Boot API, React dashboard, Docker ✅
+- [x] **Phase 2** — LLM integration, Redis worker, test agent pipeline ✅
+- [x] **Phase 3** — Real coverage, feedback loop, DONE status tracking ✅
+- [x] **Phase 4** — WebSocket live updates, test downloads, coverage bars ✅
+- [x] **Phase 5** — CLI tool, GitHub URL support, JWT auth, Gemini provider ✅
+- [x] **Phase 6** — Full cloud deployment (Render + Vercel + Supabase + Upstash) ✅
+- [x] **Phase 7** — Browser submit modal, BYOK API key, analysis engine as service ✅
+- [ ] **Phase 8** — Google OAuth, email OTP verification, Java support, file upload
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-UnitForge is built in public and welcomes contributions of all kinds.
+UnitForge is built in public. All contributions welcome.
 
-1. Read [ARCHITECTURE.md](./ARCHITECTURE.md) — the source of truth for all design decisions
-2. Check open [Issues](https://github.com/Akshat-Tated/UnitForge/issues) for things to work on
-3. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup
+1. Read [ARCHITECTURE.md](./ARCHITECTURE.md) — source of truth for all design decisions
+2. Check [Issues](https://github.com/Akshat-Tated/UnitForge/issues) for things to work on
+3. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for dev setup
 4. Open an issue before starting large features
 5. Submit a PR against `main`
 
+Good first contributions:
+- Java AST parser (`analysis-engine/parsers/java_parser.py` — currently a stub)
+- Spring Boot integration tests
+- JavaScript/TypeScript parsing support
+
 ---
 
-## 📄 License
+## License
 
-MIT — free to use, modify, and distribute. See [LICENSE](./LICENSE) for details.
+MIT — free to use, modify, and distribute. See [LICENSE](./LICENSE).
 
 ---
 
@@ -249,7 +278,10 @@ MIT — free to use, modify, and distribute. See [LICENSE](./LICENSE) for detail
   <sub>
     Built by <a href="https://github.com/Akshat-Tated">Akshat Tated</a>
     · Open-source alternative to Diffblue Cover
+    · <a href="https://unit-forge.vercel.app">Try it live</a>
     · <a href="./ARCHITECTURE.md">Architecture</a>
     · <a href="./docs/getting-started.md">Docs</a>
   </sub>
 </div>
+
+---
