@@ -1,244 +1,154 @@
+---
 # Getting Started with UnitForge
 
-This guide walks you through setting up UnitForge locally from scratch.
+## Option A — Use the hosted version (recommended)
+
+No installation needed.
+
+1. Go to **https://unit-forge.vercel.app**
+2. Click **Register** — create a free account
+3. Go to **Settings** → paste your Gemini API key
+   - Get a free key at https://aistudio.google.com
+   - Click Get API Key → Create API Key → copy it
+4. Click **+ Generate Tests** on the dashboard
+5. Paste any public Python GitHub URL
+6. Watch tests generate in real time
+7. Click **Download Tests** when done
+
+That is it. No downloads, no terminal, works on mobile.
 
 ---
 
-## Fastest way to start (CLI)
+## Option B — Self-hosting
 
-```bash
-# 1. Start infrastructure
-docker-compose up postgres redis -d
-
-# 2. Start orchestrator
-cd orchestrator && mvn spring-boot:run
-
-# 3. Start test agent
-cd test-agents && python agent.py
-
-# 4. Install and use the CLI
-cd unitforge-cli && pip install -e .
-unitforge generate ./my-project
-```
-
----
-
-## Prerequisites
-
-Install these before you begin:
+### Prerequisites
 
 | Tool | Version | Download |
 |---|---|---|
 | Java | 21 (LTS) | https://adoptium.net |
-| Python | 3.12 | https://python.org/downloads |
+| Python | 3.12 | https://python.org |
 | Node.js | 20 (LTS) | https://nodejs.org |
-| Maven | 3.9+ | https://maven.apache.org/download.cgi |
+| Maven | 3.9+ | https://maven.apache.org |
 | Docker Desktop | 24+ | https://docker.com/products/docker-desktop |
 | Git | any | https://git-scm.com |
 
-Verify your installs:
-```bash
-java --version     # openjdk 21
-python --version   # Python 3.12.x
-node --version     # v20.x.x
-mvn --version      # Apache Maven 3.9.x
-docker --version   # Docker version 24.x
-```
-
----
-
-## 1. Clone the repository
+### 1. Clone and configure
 
 ```bash
-git clone https://github.com/your-username/UnitForge.git
+git clone https://github.com/Akshat-Tated/UnitForge.git
 cd UnitForge
-```
-
----
-
-## 2. Configure environment
-
-```bash
 cp .env.example .env
 ```
 
-Open `.env` and choose your LLM provider:
+Edit `.env` with your settings. For LLM provider:
 
-**Free (no API key needed):**
+**Free (Gemini — recommended):**
+```env
+LLM_PROVIDER=gemini
+GOOGLE_API_KEY=AIzaSy...your-key
+GEMINI_MODEL=gemini-1.5-flash
+```
+
+**Free (Ollama — fully local, no internet):**
+```bash
+# Install from https://ollama.com
+ollama pull qwen2.5-coder:7b
+```
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_MODEL=deepseek-coder-v2
-```
-Install Ollama from https://ollama.com, then:
-```bash
-ollama pull deepseek-coder-v2
+OLLAMA_MODEL=qwen2.5-coder:7b
 ```
 
-**Paid (best quality):**
+**Development (no AI calls):**
 ```env
-LLM_PROVIDER=claude
-ANTHROPIC_API_KEY=your-key-here
+LLM_PROVIDER=stub
 ```
 
----
-
-## 3. Start infrastructure
+### 2. Start infrastructure
 
 ```bash
 docker-compose up postgres redis -d
 ```
 
-Verify both are healthy:
-```bash
-docker-compose ps
-```
-Both should show `running (healthy)`.
-
----
-
-## 4. Start the Analysis Engine
+### 3. Start all services
 
 ```bash
-cd analysis-engine
-
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# Mac/Linux
-python3 -m venv venv
-source venv/bin/activate
-
-pip install -r requirements.txt
-```
-
-Test it works:
-```bash
-python main.py --input tests/fixtures/sample_python_app --type python
-```
-Should print JSON with extracted functions.
-
----
-
-## 5. Start the Orchestrator
-
-Open a new terminal:
-```bash
-cd UnitForge/orchestrator
+# Terminal 1 — Orchestrator API
+cd orchestrator
 mvn spring-boot:run
-```
 
-Wait for:
-```
-Started UnitForgeApplication in X seconds
-```
+# Terminal 2 — Analysis engine
+cd analysis-engine
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python server.py
 
-Test the API:
-```bash
-# Mac/Linux
-curl -X POST http://localhost:8080/api/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"inputType":"python","inputPath":"./sample"}'
+# Terminal 3 — Test agents
+cd test-agents
+pip install -r requirements.txt
+python agent.py
 
-# Windows PowerShell
-Invoke-WebRequest -Uri "http://localhost:8080/api/jobs" `
-  -Method POST -ContentType "application/json" `
-  -Body '{"inputType":"python","inputPath":"./sample"}' `
-  -UseBasicParsing | Select-Object -ExpandProperty Content
-```
-
-Expected: `{"jobId":"...","status":"QUEUED"}`
-
----
-
-## 6. Start the Dashboard
-
-Open another new terminal:
-```bash
-cd UnitForge/dashboard
+# Terminal 4 — Dashboard
+cd dashboard
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+### 4. Open the dashboard
+
+Go to **http://localhost:5173**
+Register an account, add your Gemini API key in Settings, then click + Generate Tests.
 
 ---
 
-## 7. Submit your first job
-
-With all services running, point UnitForge at any Python project:
+## Using the CLI
 
 ```bash
-cd analysis-engine
-python main.py --input /path/to/your/python/project --type python
+cd unitforge-cli
+pip install -e .
+
+# Generate tests for a local project
+unitforge generate ./my-project --download
+
+# Generate tests from a GitHub URL
+unitforge generate https://github.com/user/repo
+
+# Check job status
+unitforge status JOB-UUID
+
+# Download tests
+unitforge download JOB-UUID
 ```
 
-The module map will be generated and can be sent to the orchestrator for
-parallel test generation (Phase 2 feature — coming soon).
-
 ---
 
-## Running with Docker (full stack)
+## Troubleshooting
 
-To run everything in containers (takes 5–10 min to build first time):
+**"Failed to load jobs. Is the orchestrator running?"**
+The dashboard cannot reach the backend. Make sure the orchestrator is running on port 8080.
+Check: `curl http://localhost:8080/health`
 
-```bash
-docker-compose up -d
-```
+**"No Gemini API key configured"**
+Go to Settings and add your Gemini API key. Get a free one at https://aistudio.google.com
 
-Services:
-- Dashboard: http://localhost:3000
-- Orchestrator API: http://localhost:8080
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
+**"LLM generation failed: 404 model not found"**
+Your Gemini model is deprecated. Update GEMINI_MODEL to `gemini-1.5-flash` in your .env or Render env vars.
 
----
+**Agent not processing jobs**
+Make sure `python agent.py` is running (locally or on Render). Check Redis connection in agent startup logs.
 
-## Common issues
-
-**`FATAL: password authentication failed`**
-Your `application.yml` username/password doesn't match your Docker container.
-Check both use `unitforge` / `unitforge`.
-
-**`Port 8080 already in use`**
-A previous Spring Boot process is still running. Kill it:
-```bash
-# Windows
+**Port 8080 already in use (Windows)**
+```powershell
 netstat -ano | findstr :8080
-taskkill /PID <the-pid> /F
-
-# Mac/Linux
-lsof -ti:8080 | xargs kill -9
-```
-
-**`invalid value for parameter "TimeZone": "Asia/Calcutta"`**
-Your JVM timezone conflicts with PostgreSQL.
-Run with: `mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Duser.timezone=UTC"`
-Or add `<jvmArguments>-Duser.timezone=UTC</jvmArguments>` to pom.xml (already done).
-
-**Ollama not connecting**
-Make sure Ollama is running: open Ollama app or run `ollama serve`.
-Check with: `curl http://localhost:11434/api/tags`
-
----
-
-## Project structure
-
-```
-UnitForge/
-├── analysis-engine/    # Python — parses code into module map
-├── orchestrator/       # Spring Boot — REST API + job queue
-├── test-agents/        # Python — LLM workers (Phase 2)
-├── dashboard/          # React — live job monitoring UI
-├── docs/               # Documentation
-├── docker-compose.yml  # Infrastructure setup
-└── ARCHITECTURE.md     # Source of truth
+taskkill /PID <PID> /F
 ```
 
 ---
 
-## Next steps
+## Architecture overview
 
-- Read [ARCHITECTURE.md](../ARCHITECTURE.md) to understand the full system
-- Follow the [roadmap](../README.md#roadmap) to see what's coming in Phase 2
-- Open an issue or PR on GitHub to contribute
+See [ARCHITECTURE.md](../ARCHITECTURE.md) for the complete specification.
+See [docs/deployment.md](./deployment.md) for production deployment guide.
+
+---
