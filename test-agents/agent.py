@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import sys
+import threading
 from typing import Any, Optional
 
 import requests
@@ -288,6 +289,55 @@ def get_user_api_key(
 # ─────────────────────────────────────────────────────────────
 # Task processing
 # ─────────────────────────────────────────────────────────────
+
+def process_task_with_timeout(
+    task: dict[str, Any],
+    config: dict[str, Any],
+    task_llm: LLMClient,
+    timeout_seconds: int = 300
+) -> None:
+    """
+    Process a single task with a hard timeout.
+    If the task takes longer than timeout_seconds,
+    report failure and move on.
+    """
+    result_container = {"done": False, "error": None}
+
+    def target():
+        try:
+            _process_task(task, task_llm, config)
+            result_container["done"] = True
+        except Exception as e:
+            result_container["error"] = str(e)
+
+    thread = threading.Thread(target=target, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout_seconds)
+
+    if thread.is_alive():
+        # Task timed out
+        module_name = task.get("moduleName", "unknown")
+        job_id = task.get("jobId", "unknown")
+        logger.warning(
+            f"Module '{module_name}' timed out after "
+            f"{timeout_seconds}s — reporting failure and moving on"
+        )
+        report_result(
+            job_id,
+            {
+                "moduleName": module_name,
+                "passed": False,
+                "coveragePercent": 0.0,
+                "generatedTestCode": "",
+                "agentLog": (
+                    f"Module timed out after {timeout_seconds} seconds. "
+                    "This module may have complex dependencies or "
+                    "generated tests that hang during execution."
+                ),
+            },
+            config["orchestrator_url"],
+        )
+
 
 def _process_task(
     task: dict[str, Any],
@@ -603,7 +653,10 @@ def main() -> None:
 
             # ── Process the task ─────────────────────────────
             try:
-                _process_task(task=task, llm_client=llm, config=config)
+                module_timeout = int(os.getenv("MODULE_TIMEOUT_SECONDS", "300"))
+                process_task_with_timeout(
+                    task, config, llm, module_timeout
+                )
                 agent_status["tasks_processed"] += 1
             except Exception as exc:
                 logger.error(
