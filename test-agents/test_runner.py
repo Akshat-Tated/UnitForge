@@ -24,8 +24,10 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -72,6 +74,38 @@ def _validate_syntax(test_code: str) -> Optional[str]:
         return None
     except SyntaxError as exc:
         return f"Syntax error at line {exc.lineno}: {exc.msg}"
+
+
+def get_collection_error(test_file_path: str) -> str:
+    """
+    When pytest fails to collect a test file, run Python
+    directly to get the actual import/syntax error.
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c",
+             f"import ast; ast.parse(open(r'{test_file_path}').read())"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return f"Syntax error: {result.stderr}"
+
+        # Try importing to get runtime import errors
+        result2 = subprocess.run(
+            [sys.executable, test_file_path],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=str(Path(test_file_path).parent),
+        )
+        if result2.returncode != 0:
+            return result2.stderr[:500]
+
+        return "Unknown collection error"
+    except Exception as e:
+        return str(e)
 
 
 def _parse_pytest_passed(output: str, returncode: int | None = None) -> bool:
@@ -290,6 +324,26 @@ def run_tests(
 
         error_msg: Optional[str] = None
         if not passed:
+            if "ERROR collecting" in combined_output:
+                collection_error = get_collection_error(test_file_path)
+                
+                # Cleanup temp before early return
+                _cleanup_temp_dir(temp_dir)
+                
+                return TestRunResult(
+                    passed=False,
+                    coverage_percent=0.0,
+                    error_message=(
+                        f"pytest failed to collect the test file.\n"
+                        f"Likely cause: the module imports a library "
+                        f"not available in the test environment.\n"
+                        f"Detail: {collection_error}\n"
+                        f"Fix: mock external imports using unittest.mock"
+                    ),
+                    output=combined_output,
+                    generated_file_path=str(test_file_path),
+                )
+            
             error_msg = _extract_failure_summary(combined_output)
 
         logger.info(
