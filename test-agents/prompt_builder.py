@@ -264,6 +264,33 @@ IMPORTANT for validator functions (functions starting with is_ or validate):
 - Always test valid inputs that PASS and invalid inputs that FAIL
 - Never assume a validator returns True for everything
 """
+
+    prompt += """
+
+CRITICAL RULES FOR EXTERNAL DEPENDENCIES:
+- The test environment has NO external libraries installed
+  (no pygame, numpy, pandas, torch, requests, flask, django, etc.)
+- If the module imports external libraries, you MUST mock them
+- Use this pattern at the TOP of your test file:
+
+import sys
+from unittest.mock import MagicMock
+
+# Mock ALL external libraries before importing the module
+# Add any other external imports the module uses:
+sys.modules['pygame'] = MagicMock()
+sys.modules['numpy'] = MagicMock()
+sys.modules['numpy.linalg'] = MagicMock()
+# etc.
+
+from module_name import ClassName  # import AFTER mocking
+
+- If you cannot reliably mock the dependencies, write tests
+  that test only pure functions that do not need the external lib
+- NEVER write a test that will fail at import time
+- Always use unittest.mock for any external dependency
+"""
+
     return prompt
 
 
@@ -307,6 +334,32 @@ def build_retry_prompt(
         f"Write the complete corrected test file from scratch.\n"
         f"Return ONLY the Python code, no explanation."
     )
+
+    if any(e in error_message for e in
+           ["ERROR collecting", "ModuleNotFoundError", "ImportError",
+            "No module named"]):
+        retry_prompt += """
+
+SPECIAL INSTRUCTION - IMPORT ERROR:
+The previous test failed because it could not import the module.
+This is because the module uses external libraries not available
+in the test environment.
+
+You MUST:
+1. Add sys.modules mocking at the TOP of the file for ALL
+   external imports (pygame, numpy, etc.)
+2. Import the module AFTER the mocking
+3. If mocking is too complex, test only standalone functions
+   that have no external dependencies
+
+Example fix:
+import sys
+from unittest.mock import MagicMock, patch
+sys.modules['pygame'] = MagicMock()
+sys.modules['pygame.math'] = MagicMock()
+# then import your module
+from body import calculate_velocity  # only if this works after mocking
+"""
 
     logger.info("Building retry prompt for '%s'", module_info.get("name", "?"))
     return retry_prompt
