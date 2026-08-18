@@ -268,27 +268,72 @@ IMPORTANT for validator functions (functions starting with is_ or validate):
     prompt += """
 
 CRITICAL RULES FOR EXTERNAL DEPENDENCIES:
-- The test environment has NO external libraries installed
-  (no pygame, numpy, pandas, torch, requests, flask, django, etc.)
-- If the module imports external libraries, you MUST mock them
-- Use this pattern at the TOP of your test file:
+The test environment has NO external libraries installed.
+You MUST mock all external imports.
+
+FOR PYGAME SPECIFICALLY use this exact pattern at the top of your file:
 
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-# Mock ALL external libraries before importing the module
-# Add any other external imports the module uses:
-sys.modules['pygame'] = MagicMock()
-sys.modules['numpy'] = MagicMock()
-sys.modules['numpy.linalg'] = MagicMock()
-# etc.
+# --- Pygame Mock Setup ---
+# Must mock all submodules before any import
+pygame_mock = MagicMock()
 
-from module_name import ClassName  # import AFTER mocking
+# Vector2 mock — must support .x, .y, arithmetic, and tuple unpacking
+class MockVector2:
+    def __init__(self, x=0, y=0):
+        if isinstance(x, (list, tuple)):
+            self.x, self.y = float(x[0]), float(x[1])
+        else:
+            self.x, self.y = float(x), float(y)
+    def __add__(self, other):
+        return MockVector2(self.x + other.x, self.y + other.y)
+    def __sub__(self, other):
+        return MockVector2(self.x - other.x, self.y - other.y)
+    def __mul__(self, scalar):
+        return MockVector2(self.x * scalar, self.y * scalar)
+    def __rmul__(self, scalar):
+        return self.__mul__(scalar)
+    def __iter__(self):
+        return iter([self.x, self.y])
+    def __repr__(self):
+        return f"MockVector2({self.x}, {self.y})"
+    def length(self):
+        return (self.x**2 + self.y**2) ** 0.5
+    def normalize(self):
+        l = self.length()
+        return MockVector2(self.x/l, self.y/l) if l > 0 else MockVector2(0, 0)
+    def dot(self, other):
+        return self.x * other.x + self.y * other.y
 
-- If you cannot reliably mock the dependencies, write tests
-  that test only pure functions that do not need the external lib
-- NEVER write a test that will fail at import time
-- Always use unittest.mock for any external dependency
+pygame_mock.math.Vector2 = MockVector2
+pygame_mock.Vector2 = MockVector2
+
+# Register all pygame submodules
+for mod in ['pygame', 'pygame.math', 'pygame.locals',
+            'pygame.sprite', 'pygame.display', 'pygame.draw',
+            'pygame.event', 'pygame.time', 'pygame.image',
+            'pygame.font', 'pygame.mixer', 'pygame.transform',
+            'pygame.surface', 'pygame.rect']:
+    sys.modules[mod] = pygame_mock
+
+# FOR NUMPY specifically:
+import numpy as np_real
+# numpy IS available — use it directly, do not mock it
+
+# --- End Mock Setup ---
+# NOW import the module under test:
+# from body import Body  (after all mocks above)
+
+IMPORTANT RULES:
+- Always put ALL sys.modules mocks BEFORE any module imports
+- Use the MockVector2 class above for any physics calculations
+- If the module uses numpy, import it normally (it is installed)
+- Test mathematical logic, not rendering or display code
+- Focus tests on pure calculation methods, not pygame draw calls
+- If a class __init__ calls pygame.init() or display functions,
+  use patch() to mock those specific calls in your tests
 """
 
     return prompt
@@ -336,29 +381,36 @@ def build_retry_prompt(
     )
 
     if any(e in error_message for e in
-           ["ERROR collecting", "ModuleNotFoundError", "ImportError",
-            "No module named"]):
+           ["ERROR collecting", "ModuleNotFoundError",
+            "ImportError", "No module named",
+            "cannot import"]):
         retry_prompt += """
 
-SPECIAL INSTRUCTION - IMPORT ERROR:
-The previous test failed because it could not import the module.
-This is because the module uses external libraries not available
-in the test environment.
+IMPORT ERROR — SPECIFIC FIX REQUIRED:
+Your previous test failed at collection time (import error).
 
-You MUST:
-1. Add sys.modules mocking at the TOP of the file for ALL
-   external imports (pygame, numpy, etc.)
-2. Import the module AFTER the mocking
-3. If mocking is too complex, test only standalone functions
-   that have no external dependencies
+Apply this EXACT fix:
 
-Example fix:
-import sys
-from unittest.mock import MagicMock, patch
-sys.modules['pygame'] = MagicMock()
-sys.modules['pygame.math'] = MagicMock()
-# then import your module
-from body import calculate_velocity  # only if this works after mocking
+1. Add MockVector2 class at the top (copy from above)
+2. Add sys.modules mocks for ALL pygame submodules
+3. Put ALL sys.modules lines BEFORE any from/import statements
+4. Test ONLY methods that do pure math — avoid testing
+   any method that calls pygame.draw, pygame.display,
+   pygame.Surface, or any rendering function
+5. Use MagicMock() for any return values that are pygame objects
+
+Example of what WORKS:
+  # Test pure math — this works
+  def test_vector_dot_product():
+      b = Body(position=MockVector2(0,0), mass=1.0)
+      v1 = MockVector2(1, 0)
+      v2 = MockVector2(0, 1)
+      assert v1.dot(v2) == 0.0  # perpendicular vectors
+
+Example of what FAILS (do NOT do this):
+  def test_body_draw():
+      b = Body(...)
+      b.draw(surface)  # avoid any rendering tests
 """
 
     logger.info("Building retry prompt for '%s'", module_info.get("name", "?"))
