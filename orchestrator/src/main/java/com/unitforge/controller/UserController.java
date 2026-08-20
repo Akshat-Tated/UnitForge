@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
@@ -75,5 +76,58 @@ public class UserController {
             user.getGeminiApiKeyEncrypted()
         );
         return ResponseEntity.ok(Map.of("apiKey", decrypted));
+    }
+
+    @GetMapping("/apikey/status")
+    public ResponseEntity<Map<String, Object>> getApiKeyStatus(
+            @RequestHeader(value = "Authorization",
+                           required = false) String authHeader) {
+
+        Optional<String> emailOpt =
+            jwtService.extractEmailFromHeader(authHeader);
+
+        if (emailOpt.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                "hasKey", false,
+                "message", "Not authenticated"
+            ));
+        }
+
+        Optional<User> userOpt =
+            userRepository.findByEmail(emailOpt.get());
+
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                "hasKey", false,
+                "message", "User not found"
+            ));
+        }
+
+        User user = userOpt.get();
+        boolean hasKey = user.getGeminiApiKeyEncrypted() != null
+            && !user.getGeminiApiKeyEncrypted().isBlank();
+
+        // Return masked key hint if key exists (last 4 chars only)
+        String keyHint = "";
+        if (hasKey) {
+            try {
+                String decrypted = encryptionService.decrypt(
+                    user.getGeminiApiKeyEncrypted()
+                );
+                keyHint = "..." + decrypted.substring(
+                    Math.max(0, decrypted.length() - 4)
+                );
+            } catch (Exception e) {
+                keyHint = "...????";
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "hasKey", hasKey,
+            "keyHint", keyHint,
+            "message", hasKey
+                ? "API key is configured"
+                : "No API key saved"
+        ));
     }
 }
