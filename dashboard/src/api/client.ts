@@ -115,3 +115,12 @@ export async function submitJob(
 export async function saveApiKey(apiKey: string): Promise<void> {
   await apiClient.post("/users/apikey", { apiKey });
 }
+
+export async function getApiKeyStatus(): Promise<{
+  hasKey: boolean;
+  keyHint: string;
+  message: string;
+}> {
+  const response = await apiClient.get("/users/apikey/status");
+  return response.data;
+}
