@@ -37,3 +37,4 @@ unitforge:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
   encryption:
     key: ${ENCRYPTION_KEY:unitforge-default-enc-key-32ch}
+  agent-token: ${AGENT_TOKEN:unitforge-default-agent-token}

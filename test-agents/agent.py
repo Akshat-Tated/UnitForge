@@ -271,9 +271,15 @@ def get_user_api_key(
     """
     if not owner_email or owner_email == "anonymous":
         return None
+    headers = {}
+    agent_token = os.getenv("AGENT_TOKEN", "")
+    if agent_token:
+        headers["Authorization"] = f"Bearer {agent_token}"
+
     try:
         response = requests.get(
-            f"{orchestrator_url}/api/users/apikey/{owner_email}",
+            f"{orchestrator_url}/api/users/apikey/lookup/{owner_email}",
+            headers=headers,
             timeout=10,
         )
         if response.status_code == 200:

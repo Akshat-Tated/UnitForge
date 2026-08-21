@@ -28,6 +28,9 @@ public class UserController {
     private final EncryptionService encryptionService;
     private final JwtService jwtService;
 
+    @org.springframework.beans.factory.annotation.Value("${unitforge.agent-token}")
+    private String expectedAgentToken;
+
     @PostMapping("/apikey")
     public ResponseEntity<Map<String, String>> saveApiKey(
             @RequestHeader("Authorization") String authHeader,
@@ -60,9 +63,20 @@ public class UserController {
         );
     }
 
-    @GetMapping("/apikey/{email}")
+    @GetMapping("/apikey/lookup/{email}")
     public ResponseEntity<Map<String, String>> getApiKey(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String email) {
+        
+        // Ensure request comes from the trusted test agent
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).build();
+        }
+        String providedToken = authHeader.substring(7);
+        if (!providedToken.equals(expectedAgentToken)) {
+            return ResponseEntity.status(403).build();
+        }
+
         // This endpoint is called by the test agent (internal)
         // to get the decrypted API key for a job owner
         User user = userRepository.findByEmail(email)
@@ -89,6 +103,7 @@ public class UserController {
         if (emailOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of(
                 "hasKey", false,
+                "keyHint", "",
                 "message", "Not authenticated"
             ));
         }
@@ -99,6 +114,7 @@ public class UserController {
         if (userOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of(
                 "hasKey", false,
+                "keyHint", "",
                 "message", "User not found"
             ));
         }

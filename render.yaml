@@ -29,6 +29,8 @@ services:
         value: true
       - key: JWT_SECRET
         generateValue: true
+      - key: AGENT_TOKEN
+        generateValue: true
       - key: ENCRYPTION_KEY
         sync: false
       - key: UNITFORGE_DEV_MODE
@@ -60,6 +62,11 @@ services:
         value: gemini
       - key: GEMINI_MODEL
         value: gemini-2.0-flash
+      - key: AGENT_TOKEN
+        fromService:
+          type: web
+          name: unitforge-api
+          envVarKey: AGENT_TOKEN
       - key: MAX_RETRY_ATTEMPTS
         value: 2
       - key: GOOGLE_API_KEY
