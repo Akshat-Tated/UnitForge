@@ -42,7 +42,7 @@ def health_head():
 @app.get("/debug/fingerprint")
 def get_fingerprint():
     import hashlib
-    agent_token = os.getenv("AGENT_TOKEN", "")
+    agent_token = os.getenv("AGENT_TOKEN", "").strip()
     if not agent_token:
         return {"fingerprint": "MISSING"}
     sha = hashlib.sha256(agent_token.encode('utf-8')).hexdigest()

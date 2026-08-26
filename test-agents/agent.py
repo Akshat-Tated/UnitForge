@@ -216,7 +216,7 @@ def report_result(
     url = f"{orchestrator_url}/api/jobs/{job_id}/results"
     
     headers = {"Content-Type": "application/json"}
-    agent_token = os.getenv("AGENT_TOKEN", "")
+    agent_token = os.getenv("AGENT_TOKEN", "").strip()
     if agent_token:
         headers["Authorization"] = f"Bearer {agent_token}"
     
@@ -276,7 +276,7 @@ def get_user_api_key(
     encoded_email = quote(owner_email, safe='')
 
     headers = {}
-    agent_token = os.getenv("AGENT_TOKEN", "")
+    agent_token = os.getenv("AGENT_TOKEN", "").strip()
     if agent_token:
         headers["Authorization"] = f"Bearer {agent_token}"
 
@@ -574,7 +574,7 @@ def main() -> None:
     logger.info(f"LLM provider: {os.getenv('LLM_PROVIDER', 'stub')}")
 
     import hashlib
-    agent_token = os.getenv("AGENT_TOKEN", "")
+    agent_token = os.getenv("AGENT_TOKEN", "").strip()
     if agent_token:
         sha = hashlib.sha256(agent_token.encode('utf-8')).hexdigest()
         logger.info(f"Agent AGENT_TOKEN fingerprint: {sha[:8]}")

@@ -95,9 +95,9 @@ public class UserController {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).build();
         }
-        String providedToken = authHeader.substring(7);
+        String providedToken = authHeader.substring(7).trim();
         logger.info("token present = true");
-        if (!providedToken.equals(expectedAgentToken)) {
+        if (!providedToken.equals(expectedAgentToken.trim())) {
             return ResponseEntity.status(403).build();
         }
 
