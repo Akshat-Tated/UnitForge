@@ -54,8 +54,7 @@ public class SecurityConfig {
                     "/api/jobs/*/results",
                     "/api/jobs/*/download",
                     "/api/jobs/*/rerun",
-                    "/api/users/apikey/status",
-                    "/api/users/apikey/lookup/**",
+                    "/api/users/apikey/**",
                     "/ws/**",
                     "/health",
                     "/actuator/health"

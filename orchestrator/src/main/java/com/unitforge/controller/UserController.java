@@ -5,6 +5,7 @@ import com.unitforge.repository.UserRepository;
 import com.unitforge.service.EncryptionService;
 import com.unitforge.service.JwtService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -27,9 +29,6 @@ public class UserController {
     private final UserRepository userRepository;
     private final EncryptionService encryptionService;
     private final JwtService jwtService;
-
-    @org.springframework.beans.factory.annotation.Value("${unitforge.agent-token}")
-    private String expectedAgentToken;
 
     @PostMapping("/apikey")
     public ResponseEntity<Map<String, String>> saveApiKey(
@@ -63,32 +62,30 @@ public class UserController {
         );
     }
 
-    @GetMapping("/apikey/lookup/{email}")
+    @GetMapping("/apikey/{email}")
     public ResponseEntity<Map<String, String>> getApiKey(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String email) {
-        
-        // Ensure request comes from the trusted test agent
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).build();
-        }
-        String providedToken = authHeader.substring(7);
-        if (!providedToken.equals(expectedAgentToken)) {
-            return ResponseEntity.status(403).build();
+
+        log.info("API key fetch request for email: {}", email);
+
+        Optional<User> userOpt = userRepository.findByEmail(email);
+
+        if (userOpt.isEmpty()) {
+            log.warn("No user found for email: {}", email);
+            return ResponseEntity.notFound().build();
         }
 
-        // This endpoint is called by the test agent (internal)
-        // to get the decrypted API key for a job owner
-        User user = userRepository.findByEmail(email)
-            .orElse(null);
-
-        if (user == null || user.getGeminiApiKeyEncrypted() == null) {
+        User user = userOpt.get();
+        if (user.getGeminiApiKeyEncrypted() == null
+                || user.getGeminiApiKeyEncrypted().isBlank()) {
+            log.info("User found but no key saved: {}", email);
             return ResponseEntity.notFound().build();
         }
 
         String decrypted = encryptionService.decrypt(
             user.getGeminiApiKeyEncrypted()
         );
+        log.info("Returning API key for: {}", email);
         return ResponseEntity.ok(Map.of("apiKey", decrypted));
     }
 
