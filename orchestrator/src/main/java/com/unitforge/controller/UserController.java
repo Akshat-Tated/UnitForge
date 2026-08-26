@@ -62,9 +62,22 @@ public class UserController {
         );
     }
 
-    @GetMapping("/apikey/{email}")
+    @org.springframework.beans.factory.annotation.Value("${unitforge.agent-token}")
+    private String expectedAgentToken;
+
+    @GetMapping("/apikey/lookup/{email}")
     public ResponseEntity<Map<String, String>> getApiKey(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String email) {
+        
+        // Ensure request comes from the trusted test agent
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).build();
+        }
+        String providedToken = authHeader.substring(7);
+        if (!providedToken.equals(expectedAgentToken)) {
+            return ResponseEntity.status(403).build();
+        }
 
         log.info("API key fetch request for email: {}", email);
 
