@@ -573,6 +573,14 @@ def main() -> None:
     logger.info(f"Orchestrator: {config['orchestrator_url']}")
     logger.info(f"LLM provider: {os.getenv('LLM_PROVIDER', 'stub')}")
 
+    import hashlib
+    agent_token = os.getenv("AGENT_TOKEN", "")
+    if agent_token:
+        sha = hashlib.sha256(agent_token.encode('utf-8')).hexdigest()
+        logger.info(f"Agent AGENT_TOKEN fingerprint: {sha[:8]}")
+    else:
+        logger.info("Agent AGENT_TOKEN configured: NO")
+
     # Start HTTP health server for Render Web Service free tier
     from health_server import start_in_background, agent_status
     start_in_background()

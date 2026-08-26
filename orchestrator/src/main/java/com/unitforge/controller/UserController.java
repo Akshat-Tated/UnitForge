@@ -65,6 +65,23 @@ public class UserController {
     @org.springframework.beans.factory.annotation.Value("${unitforge.agent-token}")
     private String expectedAgentToken;
 
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(expectedAgentToken.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder(2 * hash.length);
+            for (int i = 0; i < hash.length; i++) {
+                String hex = Integer.toHexString(0xff & hash[i]);
+                if(hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            log.info("API expected token fingerprint: {}", hexString.toString().substring(0, 8));
+        } catch (Exception e) {
+            log.warn("Could not calculate fingerprint");
+        }
+    }
+
     @GetMapping("/apikey/lookup/{email}")
     public ResponseEntity<Map<String, String>> getApiKey(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
