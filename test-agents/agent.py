@@ -22,6 +22,7 @@ import os
 import sys
 import threading
 from typing import Any, Optional
+from urllib.parse import quote
 
 import requests
 from dotenv import load_dotenv
@@ -260,7 +261,6 @@ def get_user_api_key(
     """Fetch the decrypted Gemini API key for a job owner.
 
     Returns None if no key is configured for this user.
-    Falls back to GOOGLE_API_KEY env var if not found.
 
     Args:
         owner_email: The email of the job owner.
@@ -271,6 +271,10 @@ def get_user_api_key(
     """
     if not owner_email or owner_email == "anonymous":
         return None
+
+    # URL-encode the email — @ becomes %40
+    encoded_email = quote(owner_email, safe='')
+
     headers = {}
     agent_token = os.getenv("AGENT_TOKEN", "")
     if agent_token:
@@ -278,12 +282,21 @@ def get_user_api_key(
 
     try:
         response = requests.get(
-            f"{orchestrator_url}/api/users/apikey/lookup/{owner_email}",
+            f"{orchestrator_url}/api/users/apikey/lookup/{encoded_email}",
             headers=headers,
             timeout=10,
         )
         if response.status_code == 200:
-            return response.json().get("apiKey")
+            key = response.json().get("apiKey")
+            if key:
+                logger.info(
+                    f"Retrieved personal API key for {owner_email}"
+                )
+            return key
+        logger.warning(
+            f"API key fetch returned {response.status_code} "
+            f"for {owner_email}"
+        )
         return None
     except Exception as e:
         logger.warning(

@@ -22,6 +22,11 @@ agent_status = {
 
 @app.get("/health")
 def health():
+    """
+    Always returns 200 OK.
+    Render must see 200 to keep the service alive.
+    503 causes Render to restart, making downtime worse.
+    """
     return {
         "status": "UP",
         "service": "UnitForge Test Agent",
@@ -29,9 +34,20 @@ def health():
     }
 
 
+@app.head("/health")
+def health_head():
+    """Support HEAD requests from UptimeRobot monitors."""
+    return {}
+
+
 @app.get("/")
 def root():
     return {"service": "UnitForge Test Agent", "health": "/health"}
+
+
+@app.head("/")
+def root_head():
+    return {}
 
 
 def start_health_server():
