@@ -18,7 +18,8 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -69,9 +70,16 @@ class AnalyzeResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @app.get("/health")
+@app.head("/health")
 def health() -> dict:
-    """Health check endpoint for Render."""
+    """Health check — supports both GET and HEAD for monitors."""
     return {"status": "UP", "service": "UnitForge Analysis Engine"}
+
+
+@app.get("/")
+@app.head("/")
+def root() -> dict:
+    return {"service": "UnitForge Analysis Engine", "health": "/health"}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
