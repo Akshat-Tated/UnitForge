@@ -70,11 +70,16 @@ public class UserController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String email) {
         
+        logger.info(
+            "Agent API-key lookup authentication received: "
+            + (authHeader != null ? "Authorization header present" : "missing")
+        );
         // Ensure request comes from the trusted test agent
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).build();
         }
         String providedToken = authHeader.substring(7);
+        logger.info("token present = true");
         if (!providedToken.equals(expectedAgentToken)) {
             return ResponseEntity.status(403).build();
         }
@@ -155,5 +160,22 @@ public class UserController {
                 ? "API key is configured"
                 : "No API key saved"
         ));
+    @GetMapping("/apikey/debug/fingerprint")
+    public ResponseEntity<Map<String, String>> getAgentTokenFingerprint() {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(expectedAgentToken.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder(2 * hash.length);
+            for (int i = 0; i < hash.length; i++) {
+                String hex = Integer.toHexString(0xff & hash[i]);
+                if(hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return ResponseEntity.ok(Map.of("fingerprint", hexString.toString().substring(0, 8)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 }
