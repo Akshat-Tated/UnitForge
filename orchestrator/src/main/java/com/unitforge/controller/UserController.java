@@ -87,7 +87,7 @@ public class UserController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable String email) {
         
-        logger.info(
+        log.info(
             "Agent API-key lookup authentication received: "
             + (authHeader != null ? "Authorization header present" : "missing")
         );
@@ -96,7 +96,7 @@ public class UserController {
             return ResponseEntity.status(401).build();
         }
         String providedToken = authHeader.substring(7).trim();
-        logger.info("token present = true");
+        log.info("token present = true");
         if (!providedToken.equals(expectedAgentToken.trim())) {
             return ResponseEntity.status(403).build();
         }
@@ -177,6 +177,8 @@ public class UserController {
                 ? "API key is configured"
                 : "No API key saved"
         ));
+    }
+
     @GetMapping("/apikey/debug/fingerprint")
     public ResponseEntity<Map<String, String>> getAgentTokenFingerprint() {
         try {
