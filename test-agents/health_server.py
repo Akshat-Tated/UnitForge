@@ -39,6 +39,15 @@ def health_head():
     """Support HEAD requests from UptimeRobot monitors."""
     return {}
 
+@app.get("/debug/fingerprint")
+def get_fingerprint():
+    import hashlib
+    agent_token = os.getenv("AGENT_TOKEN", "")
+    if not agent_token:
+        return {"fingerprint": "MISSING"}
+    sha = hashlib.sha256(agent_token.encode('utf-8')).hexdigest()
+    return {"fingerprint": sha[:8]}
+
 
 @app.get("/")
 def root():
