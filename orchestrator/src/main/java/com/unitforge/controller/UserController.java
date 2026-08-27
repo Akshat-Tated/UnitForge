@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -82,10 +83,10 @@ public class UserController {
         }
     }
 
-    @GetMapping("/apikey/lookup/{email}")
+    @GetMapping("/apikey/fetch")
     public ResponseEntity<Map<String, String>> getApiKey(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable String email) {
+            @RequestParam String email) {
         
         log.info(
             "Agent API-key lookup authentication received: "

@@ -280,7 +280,7 @@ def get_user_api_key(
     if agent_token:
         headers["Authorization"] = f"Bearer {agent_token}"
 
-    url = f"{orchestrator_url}/api/users/apikey/lookup/{encoded_email}"
+    url = f"{orchestrator_url}/api/users/apikey/fetch?email={encoded_email}"
     logger.info(f"API key lookup URL: {url}")
     logger.info(f"Agent authentication configured: {'YES' if agent_token else 'NO'}")
     logger.info(f"Authorization header configured: {'YES' if agent_token else 'NO'}")
